@@ -1,0 +1,2 @@
+gp -delete DD112233445566 -d
+gp -install displaytest.cap -d
