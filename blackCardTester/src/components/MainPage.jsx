@@ -146,7 +146,7 @@ class MainPage extends Component {
     return new Promise((resolve, reject) => {
       const timeCommand = this.getTime();
       const responseAPDULog =
-        this.state.responseAPDULog + timeCommand + " >> " + commandAPDU + "\n";
+        this.state.responseAPDULog + timeCommand + " << " + commandAPDU + "\n";
       this.setState({
         responseAPDULog
       });
@@ -162,7 +162,7 @@ class MainPage extends Component {
           const responseAPDULog =
             this.state.responseAPDULog +
             timeResponse +
-            " << " +
+            " >> " +
             responseAPDU +
             "\n";
           this.setState({
