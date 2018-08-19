@@ -1,1 +1,0 @@
-java -jar gp/gp.jar -install blackCardApplet.cap -d
