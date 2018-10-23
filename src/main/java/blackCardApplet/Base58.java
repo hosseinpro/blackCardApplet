@@ -35,7 +35,8 @@ public class Base58 {
         }
         short resultLength = (short) ((2 * inLength) - j);
         Util.arrayCopyNonAtomic(out, (short) (outOffset + j), out, outOffset, resultLength);
-        return (short) (outOffset + resultLength);
+        // return (short) (outOffset + resultLength);
+        return resultLength;
     }
 
     public static short decode(byte[] in, short inOffset, short inLength, byte[] out, short outOffset, byte[] scratch,
