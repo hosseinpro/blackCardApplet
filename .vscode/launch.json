@@ -22,5 +22,7 @@
       "hostName": "localhost",
       "port": 0
     }
+
+    //Clear cache: hossein/Library/Application Support/Code/User/workspaceStorage
   ]
 }

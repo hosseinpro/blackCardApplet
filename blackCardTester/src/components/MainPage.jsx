@@ -259,9 +259,9 @@ class MainPage extends Component {
       });
   }
 
-  onClickGenMasterKey(e) {
+  onClickGenMasterSeed(e) {
     this.state.blackCard
-      .generateMasterKey()
+      .generateMasterSeed()
       .then(res => {
         this.outputAddress.value = "";
       })
@@ -281,9 +281,9 @@ class MainPage extends Component {
       });
   }
 
-  onClickRemMasterKey(e) {
+  onClickRemMasterSeed(e) {
     this.state.blackCard
-      .removeMasterKey()
+      .removeMasterSeed()
       .then(res => {
         this.outputAddress.value = "";
       })
@@ -312,21 +312,21 @@ class MainPage extends Component {
       });
   }
 
-  onClickExportMasterKey(e) {
+  onClickExportMasterSeed(e) {
     this.state.blackCard
-      .exportMasterKey(this.inputOutputYesCode.value)
+      .exportMasterSeed(this.inputOutputYesCode.value)
       .then(res => {
-        this.inputOutputEncryptedMasterKey.value =
-          res.encryptedMasterKeyAndTransportKeyPublic;
+        this.inputOutputEncryptedMasterSeed.value =
+          res.encryptedMasterSeedAndTransportKeyPublic;
       })
       .catch(err => {
         console.log(err);
       });
   }
 
-  onClickImportMasterKey(e) {
+  onClickImportMasterSeed(e) {
     this.state.blackCard
-      .importMasterKey(this.inputOutputEncryptedMasterKey.value)
+      .importMasterSeed(this.inputOutputEncryptedMasterSeed.value)
       .then(res => {})
       .catch(err => {
         console.log(err);
@@ -594,10 +594,10 @@ class MainPage extends Component {
             <div className="input-group-append">
               <button
                 className="btn btn-primary"
-                onClick={this.onClickGenMasterKey.bind(this)}
+                onClick={this.onClickGenMasterSeed.bind(this)}
                 disabled={!this.state.isSmartcardConnected}
               >
-                GenMasterKey
+                GenMasterSeed
               </button>
               <button
                 className="btn btn-primary"
@@ -608,10 +608,10 @@ class MainPage extends Component {
               </button>
               <button
                 className="btn btn-primary"
-                onClick={this.onClickRemMasterKey.bind(this)}
+                onClick={this.onClickRemMasterSeed.bind(this)}
                 disabled={!this.state.isSmartcardConnected}
               >
-                RemMasterKey
+                RemMasterSeed
               </button>
             </div>
           </div>
@@ -651,10 +651,10 @@ class MainPage extends Component {
             <div className="input-group-append">
               <button
                 className="btn btn-primary"
-                onClick={this.onClickExportMasterKey.bind(this)}
+                onClick={this.onClickExportMasterSeed.bind(this)}
                 disabled={!this.state.isSmartcardConnected}
               >
-                ExportMasterKey
+                ExportMasterSeed
               </button>
             </div>
           </div>
@@ -663,16 +663,16 @@ class MainPage extends Component {
               type="text"
               className="form-control"
               placeholder="Encrypted Master Key and Transport Key Public"
-              ref={el => (this.inputOutputEncryptedMasterKey = el)}
+              ref={el => (this.inputOutputEncryptedMasterSeed = el)}
               disabled={!this.state.isSmartcardConnected}
             />
             <div className="input-group-append">
               <button
                 className="btn btn-primary"
-                onClick={this.onClickImportMasterKey.bind(this)}
+                onClick={this.onClickImportMasterSeed.bind(this)}
                 disabled={!this.state.isSmartcardConnected}
               >
-                ImportMasterKey
+                ImportMasterSeed
               </button>
             </div>
           </div>

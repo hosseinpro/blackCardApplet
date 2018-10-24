@@ -152,12 +152,12 @@ class BlackCard {
     });
   }
 
-  generateMasterKey() {
+  generateMasterSeed() {
     //ISO/IEC 7816-8 2004 Section 5.1
     //P1=84: key generation with no output
-    //P2=01: reference to first master key
-    const apduGenerateMK = "00 46 84 01";
-    return this.transmit(apduGenerateMK, responseAPDU => {
+    //P2=01: reference to master seed
+    const apduGenerateMS = "00 46 84 01";
+    return this.transmit(apduGenerateMS, responseAPDU => {
       return { result: true };
     });
   }
@@ -173,12 +173,12 @@ class BlackCard {
     });
   }
 
-  removeMasterKey() {
+  removeMasterSeed() {
     //ISO/IEC 7816-8 2004 Section 5.1
     //P1=C4: key remove with no output (non-standard)
-    //P2=01: reference to first master key
-    const apduRemoveMK = "00 46 C4 01";
-    return this.transmit(apduRemoveMK, responseAPDU => {
+    //P2=01: reference to master seed
+    const apduRemoveMS = "00 46 C4 01";
+    return this.transmit(apduRemoveMS, responseAPDU => {
       return { result: true };
     });
   }
@@ -234,32 +234,32 @@ class BlackCard {
     });
   }
 
-  exportMasterKey(yesCode) {
+  exportMasterSeed(yesCode) {
     //ISO/IEC 7816-8 2004 Section 5.2 and 5.9
     //P1=86: palin value encyption
     //P2=80: plain input data (on card)
     //Lc=len of publicKey and Le=len of encrypted data
-    const apduExportMK = "00 2A 86 80 04" + this.ascii2hex(yesCode);
-    return this.transmit(apduExportMK, responseAPDU => {
-      const encryptedMasterKeyAndTransportKeyPublic = responseAPDU.data;
-      return { encryptedMasterKeyAndTransportKeyPublic };
+    const apduExportMS = "00 2A 86 80 04" + this.ascii2hex(yesCode);
+    return this.transmit(apduExportMS, responseAPDU => {
+      const encryptedMasterSeedAndTransportKeyPublic = responseAPDU.data;
+      return { encryptedMasterSeedAndTransportKeyPublic };
     });
   }
 
-  importMasterKey(encryptedMasterKeyAndTransportKeyPublic) {
+  importMasterSeed(encryptedMasterSeedAndTransportKeyPublic) {
     //ISO/IEC 7816-8 2004 Section 5.2 and 5.10
     //P1=80: plain input data (on card)
     //P2=86: palin value encyption
     //Lc=len of encrypted data and Le=null
-    const encryptedMasterKeyAndTransportKeyPublicLength = this.padHex(
-      (encryptedMasterKeyAndTransportKeyPublic.length / 2).toString(16),
+    const encryptedMasterSeedAndTransportKeyPublicLength = this.padHex(
+      (encryptedMasterSeedAndTransportKeyPublic.length / 2).toString(16),
       2
     );
-    const apduImportMK =
+    const apduImportMS =
       "00 2A 80 86 " +
-      encryptedMasterKeyAndTransportKeyPublicLength +
-      encryptedMasterKeyAndTransportKeyPublic;
-    return this.transmit(apduImportMK, responseAPDU => {
+      encryptedMasterSeedAndTransportKeyPublicLength +
+      encryptedMasterSeedAndTransportKeyPublic;
+    return this.transmit(apduImportMS, responseAPDU => {
       return { result: true };
     });
   }
