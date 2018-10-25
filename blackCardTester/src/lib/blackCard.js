@@ -264,26 +264,17 @@ class BlackCard {
     });
   }
 
-  exportWords() {
-    //ISO/IEC 7816-4 2005 Section 7.2.3
-    //P1-P2: FID
-    //Le=00: read entire file
-    const apduExportWords = "00 B1 BC 05 00";
-    return this.transmit(apduExportWords, responseAPDU => {
-      const words = this.hex2Ascii(responseAPDU.data);
-      return { words };
-    });
-  }
-
-  importWords(words) {
+  importMasterSeedPlain(masterSeed) {
     //ISO/IEC 7816-4 2005 Section 7.2.4
     //P1-P2: FID
     //Le=00: write entire file
-    const hexWords = this.ascii2hex(words);
 
-    const hexWordsLength = this.padHex((hexWords.length / 2).toString(16), 2);
-    const apduImportWords = "00 D1 BC 05" + hexWordsLength + hexWords;
-    return this.transmit(apduImportWords, responseAPDU => {
+    const masterSeedLength = this.padHex(
+      (masterSeed.length / 2).toString(16),
+      2
+    );
+    const apduImportMSPlain = "00 D1 BC 05" + masterSeedLength + masterSeed;
+    return this.transmit(apduImportMSPlain, responseAPDU => {
       return { result: true };
     });
   }

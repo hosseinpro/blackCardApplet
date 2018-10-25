@@ -333,20 +333,9 @@ class MainPage extends Component {
       });
   }
 
-  onClickExportWords(e) {
+  onClickImportMasterSeedPlain(e) {
     this.state.blackCard
-      .exportWords()
-      .then(res => {
-        this.inputOutputWords.value = res.words;
-      })
-      .catch(err => {
-        console.log(err);
-      });
-  }
-
-  onClickImportWords(e) {
-    this.state.blackCard
-      .importWords(this.inputOutputWords.value)
+      .importMasterSeedPlain(this.inputOutputMasterSeedPlain.value)
       .then(res => {})
       .catch(err => {
         console.log(err);
@@ -680,24 +669,17 @@ class MainPage extends Component {
             <input
               type="text"
               className="form-control"
-              placeholder="Words"
-              ref={el => (this.inputOutputWords = el)}
+              placeholder="MasterSeed"
+              ref={el => (this.inputOutputMasterSeedPlain = el)}
               disabled={!this.state.isSmartcardConnected}
             />
             <div className="input-group-append">
               <button
                 className="btn btn-primary"
-                onClick={this.onClickExportWords.bind(this)}
+                onClick={this.onClickImportMasterSeedPlain.bind(this)}
                 disabled={!this.state.isSmartcardConnected}
               >
-                ExportWords
-              </button>
-              <button
-                className="btn btn-primary"
-                onClick={this.onClickImportWords.bind(this)}
-                disabled={!this.state.isSmartcardConnected}
-              >
-                ImportWords
+                ImportMasterSeedPlain
               </button>
             </div>
           </div>

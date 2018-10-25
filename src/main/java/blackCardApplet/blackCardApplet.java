@@ -15,7 +15,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
     private static final short LABEL_SIZE_MAX = 16;
     private static final short BUFFER_SIZE_MAX = 200;// 500;// 1000;
     private static final short HASH_SIZE = 32;
-    private static final short SCRATCH_SIZE = 200;
+    private static final short SCRATCH_SIZE = 300;
     private static final short MSEED_SIZE = 64;
 
     public static final short BTCTestNet = 1;
@@ -147,10 +147,8 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
                 processExportMasterSeed(apdu);
             } else if ((ins == (byte) 0x2A) && (p1 == (byte) 0x80) && (p2 == (byte) 0x86)) {
                 processImportMasterSeed(apdu);
-            } else if ((ins == (byte) 0xB1) && (p1 == (byte) 0xBC) && (p2 == (byte) 0x05)) {
-                processExportWords(apdu);
             } else if ((ins == (byte) 0xD1) && (p1 == (byte) 0xBC) && (p2 == (byte) 0x05)) {
-                processImportWords(apdu);
+                processImportMasterSeedPalin(apdu);
             }
 
             else if (ins == (byte) 0xAA) {
@@ -170,11 +168,38 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         byte[] buf = apdu.getBuffer();
         short lc = apdu.getIncomingLength();
 
-        Util.arrayCopyNonAtomic(buf, OFFSET_CDATA, mseed, (short) 0, MSEED_SIZE);
+        if (lc != 7) {
+            return;
+        }
+
+        bip.bip44DerivePath(mseed, (short) 0, MSEED_SIZE, buf, OFFSET_CDATA, mainBuffer, (short) 0, (short) 1,
+                mainBuffer, (short) 32, scratchBuffer, (short) 0);
+
+        short pubKeyLen = bip.ec256PrivateKeyToPublicKey(mainBuffer, (short) 0, mainBuffer, (short) 70, true);
+
+        apdu.setOutgoing();
+        apdu.setOutgoingLength(pubKeyLen);
+        apdu.sendBytesLong(mainBuffer, (short) 70, pubKeyLen);
+
+        // apdu.setIncomingAndReceive();
+        // byte[] buf = apdu.getBuffer();
+        // short lc = apdu.getIncomingLength();
+
+        // Util.arrayCopyNonAtomic(buf, OFFSET_CDATA, hashBuffer, (short) 0, lc);
+
+        // bip.bip32GenerateMasterKey(mseed, (short) 0, MSEED_SIZE, BIP.BITCOIN,
+        // mainBuffer, (short) 0);
+
+        // bip.bip32DerivePrivateKey(mainBuffer, (short) 0, (short) 0, true, mainBuffer,
+        // (short) 0, scratchBuffer,
+        // (short) 0);
+
+        // short pubKeyLen = bip.ec256PrivateKeyToPublicKey(mainBuffer, (short) 0,
+        // mainBuffer, (short) 70, true);
 
         // apdu.setOutgoing();
-        // apdu.setOutgoingLength(MSEED_SIZE);
-        // apdu.sendBytesLong(mseed, (short) 0, MSEED_SIZE);
+        // apdu.setOutgoingLength(pubKeyLen);
+        // apdu.sendBytesLong(mainBuffer, (short) 70, pubKeyLen);
 
         // short masterPrivateKeyLength = ((ECPrivateKey)
         // masterKey.getPrivate()).getS(mainBuffer, (short) 0);
@@ -325,10 +350,6 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         } while (!bip.bip32GenerateMasterKey(mseed, (short) 0, MSEED_SIZE, BIP.BITCOIN, mainBuffer, (short) 0));
 
         mseedInitialized = true;
-
-        apdu.setOutgoing();// temp
-        apdu.setOutgoingLength((short) 64);
-        apdu.sendBytesLong(mainBuffer, (short) 0, (short) 64);
     }
 
     private short publicKeyToAddress(byte[] inBuf, short inOffset, short inLength, byte[] outBuf, short outOffset) {
@@ -613,16 +634,32 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
     // ((ECPrivateKey) masterKey.getPrivate()).setS(mainBuffer, (short) 0,
     // cipherLength);
 
-    private void processExportWords(APDU apdu) {
+    private void processImportMasterSeedPalin(APDU apdu) {
         if (pin.isValidated() == false) {
             ISOException.throwIt(ISO7816.SW_SECURITY_STATUS_NOT_SATISFIED);
         }
-    }
 
-    private void processImportWords(APDU apdu) {
-        if (pin.isValidated() == false) {
-            ISOException.throwIt(ISO7816.SW_SECURITY_STATUS_NOT_SATISFIED);
+        if (mseedInitialized == true) {
+            ISOException.throwIt(SW_COMMAND_NOT_ALLOWED);
         }
+
+        apdu.setIncomingAndReceive();
+        byte[] buf = apdu.getBuffer();
+        short lc = apdu.getIncomingLength();
+
+        if (lc != MSEED_SIZE) {
+            ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
+        }
+
+        Util.arrayCopyNonAtomic(buf, OFFSET_CDATA, mainBuffer, (short) 0, MSEED_SIZE);
+
+        if (!bip.bip32GenerateMasterKey(mainBuffer, (short) 0, MSEED_SIZE, BIP.BITCOIN, mainBuffer, MSEED_SIZE)) {
+            ISOException.throwIt(ISO7816.SW_DATA_INVALID);
+        }
+
+        Util.arrayCopyNonAtomic(buf, OFFSET_CDATA, mseed, (short) 0, MSEED_SIZE);
+
+        mseedInitialized = true;
     }
 
     private void processECCSign(APDU apdu) {
