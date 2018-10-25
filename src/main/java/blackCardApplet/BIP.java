@@ -117,6 +117,10 @@ class BIP {
 
         // m[1]/44'[1]/coin'[1]/account'[1]/change[1]/address_index[2]
 
+        if (publicKeysRange < 1) {
+            return false;
+        }
+
         if (keyPath[keyPathOffset + 2] != BITCOIN) {
             return false;
         }
