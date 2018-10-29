@@ -31,14 +31,10 @@ class BIP {
         Secp256k1.setCommonCurveParameters(ecPrivateKeyTemp);
     }
 
-    public boolean bip32GenerateMasterKey(byte[] seed, short seedOffset, short seedLength, short coin, byte[] kcPar,
+    public boolean bip32GenerateMasterKey(byte[] seed, short seedOffset, short seedLength, byte[] kcPar,
             short kcParOffset) {
         // HMAC-SHA512(key="Bitcoin seed", data=mseed) => iL|iR
-        if (coin == BITCOIN) {
-            hmacMasterKey.setKey(BITCOIN_SEED, (short) 0, (short) BITCOIN_SEED.length);
-        } else {
-            return false;
-        }
+        hmacMasterKey.setKey(BITCOIN_SEED, (short) 0, (short) BITCOIN_SEED.length);
         hmacSignature.init(hmacMasterKey, Signature.MODE_SIGN);
         hmacSignature.sign(seed, seedOffset, seedLength, kcPar, kcParOffset);
         // if iL=0 or >=n => invalid
@@ -115,15 +111,12 @@ class BIP {
             short keyPathOffset, byte[] privateKey32, short privateKeyOffset, short publicKeysRange, byte[] publicKeys,
             short publicKeysOffset, byte[] scratchBuffer232, short scratchOffset) {
 
-        // m[1]/44'[1]/coin'[1]/account'[1]/change[1]/address_index[2]
-
         if (publicKeysRange < 1) {
             return false;
         }
 
-        if (keyPath[keyPathOffset + 2] != BITCOIN) {
-            return false;
-        }
+        // m[1]/44'[1]/coin'[1]/account'[1]/change[1]/address_index[2]
+
         // m
         if ((keyPath[keyPathOffset + 0] != 'm') || !bip32GenerateMasterKey(masterSeed, masterSeedOffset,
                 masterSeedLength, keyPath[keyPathOffset + 2], scratchBuffer232, scratchOffset)) {

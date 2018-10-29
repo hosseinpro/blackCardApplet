@@ -345,9 +345,9 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
 
         do {
             // entropy => mseed
-            // randomData.generateData(mseed, (short) 0, MSEED_SIZE);
+            randomData.generateData(mseed, (short) 0, MSEED_SIZE);
 
-        } while (!bip.bip32GenerateMasterKey(mseed, (short) 0, MSEED_SIZE, BIP.BITCOIN, mainBuffer, (short) 0));
+        } while (!bip.bip32GenerateMasterKey(mseed, (short) 0, MSEED_SIZE, mainBuffer, (short) 0));
 
         mseedInitialized = true;
     }
@@ -369,6 +369,29 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         Util.arrayCopyNonAtomic(scratchBuffer, (short) 0, mainBuffer, (short) 21, (short) 4);
 
         return Base58.encode(mainBuffer, (short) 0, (short) 25, outBuf, outOffset, scratchBuffer, (short) 0);
+    }
+
+    private boolean checkAddress(short coin, byte[] addressHex, short addressOffset, short addressLength,
+            byte[] scratch64, short scratchOffset) {
+        switch (coin) {
+        case BIP.BITCOIN:
+            if ((addressLength != 25) || (addressHex[addressOffset] != 0x00)) {
+                return false;
+            }
+
+            sha256.reset();
+            sha256.doFinal(addressHex, addressOffset, (short) 21, scratch64, scratchOffset);
+            sha256.reset();
+            sha256.doFinal(scratch64, scratchOffset, (short) 32, scratch64, (short) (scratchOffset + 32));
+
+            if (Util.arrayCompare(addressHex, addressOffset, scratch64, (short) (scratchOffset + 32),
+                    (short) 32) != 0) {
+                return false;
+            }
+            return true;
+        default:
+            return false;
+        }
     }
 
     private void processGetAddress(APDU apdu) {
@@ -653,7 +676,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
 
         Util.arrayCopyNonAtomic(buf, OFFSET_CDATA, mainBuffer, (short) 0, MSEED_SIZE);
 
-        if (!bip.bip32GenerateMasterKey(mainBuffer, (short) 0, MSEED_SIZE, BIP.BITCOIN, mainBuffer, MSEED_SIZE)) {
+        if (!bip.bip32GenerateMasterKey(mainBuffer, (short) 0, MSEED_SIZE, mainBuffer, MSEED_SIZE)) {
             ISOException.throwIt(ISO7816.SW_DATA_INVALID);
         }
 
