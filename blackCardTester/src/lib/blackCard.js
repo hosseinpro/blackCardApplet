@@ -35,7 +35,7 @@ class BlackCard {
     });
   }
 
-  hex2Ascii(hex) {
+  static hex2Ascii(hex) {
     hex = hex.toString();
     let str = "";
     for (var i = 0; i < hex.length && hex.substr(i, 2) !== "00"; i += 2)
@@ -43,7 +43,7 @@ class BlackCard {
     return str;
   }
 
-  ascii2hex(str) {
+  static ascii2hex(str) {
     var arr1 = [];
     for (var n = 0, l = str.length; n < l; n++) {
       var hex = Number(str.charCodeAt(n)).toString(16);
@@ -52,7 +52,7 @@ class BlackCard {
     return arr1.join("");
   }
 
-  padHex(hex, numberOfDigits) {
+  static padHex(hex, numberOfDigits) {
     const str = "00000000" + hex;
     const r = str.substring(str.length - numberOfDigits);
     return r;
@@ -83,7 +83,7 @@ class BlackCard {
     //Le=00: read entire file
     const apduGetVersion = "00 B1 BC 01 00";
     return this.transmit(apduGetVersion, responseAPDU => {
-      const splitData = this.hex2Ascii(responseAPDU.data).split(" ");
+      const splitData = BlackCard.hex2Ascii(responseAPDU.data).split(" ");
       const type = splitData[0];
       const version = splitData[1];
       return { type, version };
@@ -96,7 +96,7 @@ class BlackCard {
     //Le=00: read entire file
     const apduGetLabel = "00 B1 BC 02 00";
     return this.transmit(apduGetLabel, responseAPDU => {
-      const label = this.hex2Ascii(responseAPDU.data);
+      const label = BlackCard.hex2Ascii(responseAPDU.data);
       return { label };
     });
   }
@@ -105,8 +105,11 @@ class BlackCard {
     //ISO/IEC 7816-4 2005 Section 7.2.4
     //P1-P2: FID
     //Le=00: write entire file
-    const hexLabel = this.ascii2hex(newLabel);
-    const hexLabelLength = this.padHex((hexLabel.length / 2).toString(16), 2);
+    const hexLabel = BlackCard.ascii2hex(newLabel);
+    const hexLabelLength = BlackCard.padHex(
+      (hexLabel.length / 2).toString(16),
+      2
+    );
     const apduSetLabel = "00 D1 BC 02" + hexLabelLength + hexLabel;
     return this.transmit(apduSetLabel, responseAPDU => {
       return { result: true };
@@ -116,7 +119,7 @@ class BlackCard {
   verifyPIN(cardPIN) {
     //ISO/IEC 7816-4 2005 Section 7.5.6
     //P2=00: global PIN
-    const apduVerifyPIN = "00 20 00 00 04" + this.ascii2hex(cardPIN);
+    const apduVerifyPIN = "00 20 00 00 04" + BlackCard.ascii2hex(cardPIN);
     return this.transmit(apduVerifyPIN, responseAPDU => {
       return { result: true };
     });
@@ -126,7 +129,7 @@ class BlackCard {
     //ISO/IEC 7816-4 2005 Section 7.5.7
     //p1=01: just new pin is included
     //P2=00: global PIN
-    const apduChangePIN = "00 24 01 00 04" + this.ascii2hex(cardNewPIN);
+    const apduChangePIN = "00 24 01 00 04" + BlackCard.ascii2hex(cardNewPIN);
     return this.transmit(apduChangePIN, responseAPDU => {
       return { result: true };
     });
@@ -136,7 +139,7 @@ class BlackCard {
     //ISO/IEC 7816-4 2005 Section 7.5.7
     //p1=31: it's PUK and just new puk is included
     //P2=00: global PUK
-    const apduSetPUK = "00 24 31 00 08" + this.ascii2hex(cardPUK);
+    const apduSetPUK = "00 24 31 00 08" + BlackCard.ascii2hex(cardPUK);
     return this.transmit(apduSetPUK, responseAPDU => {
       return { result: true };
     });
@@ -146,7 +149,7 @@ class BlackCard {
     //ISO/IEC 7816-4 2005 Section 7.5.10
     //p1=01: new pin is not included
     //P2=00: global PIN
-    const apduUnblockPIN = "00 2C 01 00 08" + this.ascii2hex(cardPUK);
+    const apduUnblockPIN = "00 2C 01 00 08" + BlackCard.ascii2hex(cardPUK);
     return this.transmit(apduUnblockPIN, responseAPDU => {
       return { result: true };
     });
@@ -168,7 +171,7 @@ class BlackCard {
     //Le=00: read entire file
     const apduGetAddress = "00 B1 BC 03 00";
     return this.transmit(apduGetAddress, responseAPDU => {
-      const address = this.hex2Ascii(responseAPDU.data);
+      const address = BlackCard.hex2Ascii(responseAPDU.data);
       return { address };
     });
   }
@@ -221,7 +224,7 @@ class BlackCard {
     //ISO/IEC 7816-4 2005 Section 7.2.4
     //P1-P2: FID
     //Le=00: write entire file
-    const backupCardTransportKeyPublicLength = this.padHex(
+    const backupCardTransportKeyPublicLength = BlackCard.padHex(
       (backupCardTransportKeyPublic.length / 2).toString(16),
       2
     );
@@ -239,7 +242,7 @@ class BlackCard {
     //P1=86: palin value encyption
     //P2=80: plain input data (on card)
     //Lc=len of publicKey and Le=len of encrypted data
-    const apduExportMS = "00 2A 86 80 04" + this.ascii2hex(yesCode);
+    const apduExportMS = "00 2A 86 80 04" + BlackCard.ascii2hex(yesCode);
     return this.transmit(apduExportMS, responseAPDU => {
       const encryptedMasterSeedAndTransportKeyPublic = responseAPDU.data;
       return { encryptedMasterSeedAndTransportKeyPublic };
@@ -251,7 +254,7 @@ class BlackCard {
     //P1=80: plain input data (on card)
     //P2=86: palin value encyption
     //Lc=len of encrypted data and Le=null
-    const encryptedMasterSeedAndTransportKeyPublicLength = this.padHex(
+    const encryptedMasterSeedAndTransportKeyPublicLength = BlackCard.padHex(
       (encryptedMasterSeedAndTransportKeyPublic.length / 2).toString(16),
       2
     );
@@ -269,7 +272,7 @@ class BlackCard {
     //P1-P2: FID
     //Le=00: write entire file
 
-    const masterSeedLength = this.padHex(
+    const masterSeedLength = BlackCard.padHex(
       (masterSeed.length / 2).toString(16),
       2
     );
@@ -324,7 +327,27 @@ class BlackCard {
   //         return result;
   //     }
 
-  ////Begin of card functions
+  getAddressList(keyPath, count) {
+    //ISO/IEC 7816-4 2005 Section 7.2.3
+    //P1-P2: FID
+    //Le=00: read entire file
+
+    const countHex = BlackCard.padHex(count.toString(16), 2);
+    const apduGetAddressList = "00 B1 BC 06 08" + keyPath + countHex;
+    return this.transmit(apduGetAddressList, responseAPDU => {
+      let addressList = [];
+      const addressLength = parseInt(responseAPDU.data.substring(0, 2), 16) * 2;
+      for (let i = 0; i < count; i++) {
+        addressList[i] = responseAPDU.data.substring(
+          i * addressLength + 2,
+          (i + 1) * addressLength + 2
+        );
+      }
+      return { addressList };
+    });
+  }
+
+  ////End of card functions
 }
 
 export default BlackCard;

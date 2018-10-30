@@ -2,6 +2,7 @@ import React, { Component } from "react";
 
 import SmartcardBridgeClient from "../lib/smartcardBridgeClient";
 import BlackCard from "../lib/blackCard";
+import bs58 from "bs58";
 
 class MainPage extends Component {
   constructor(props) {
@@ -21,7 +22,8 @@ class MainPage extends Component {
     isSmartcardConnected: false,
     protocol: 0,
     errorMessage: "",
-    responseAPDULog: ""
+    responseAPDULog: "",
+    addressInfo: []
   };
 
   componentDidMount() {
@@ -404,6 +406,38 @@ class MainPage extends Component {
   //     return satoshi / 100000000;
   // }
 
+  onClickGetAddressList(e) {
+    this.state.blackCard
+      .getAddressList(this.inputKeyPath.value, this.inputCount.value)
+      .then(res => {
+        const keyPathFirst = this.inputKeyPath.value;
+        const address_index = parseInt(keyPathFirst.substring(10, 14), 16);
+        const keyPath_no_index = keyPathFirst.substring(0, 10);
+
+        let addressInfo = [];
+        for (let i = 0; i < res.addressList.length; i++) {
+          const address = bs58.encode(Buffer.from(res.addressList[i], "hex"));
+          //const address = BlackCard.hex2Ascii(res.addressList[i]);
+          const keyPath =
+            keyPath_no_index +
+            BlackCard.padHex((address_index + i).toString(16), 4);
+          //balance
+          //lastTx
+          addressInfo[i] = { address, keyPath };
+        }
+        this.setState({ addressInfo });
+
+        this.outputAddressInfo.value = JSON.stringify(
+          this.state.addressInfo
+        ).replace(",{", ",\n{");
+      })
+      .catch(err => {
+        console.log(err);
+      });
+  }
+
+  onClickGetAddressInfo(e) {}
+
   onClickTransmit(e) {
     this.cardreaderTransmit(this.inputCommandAPDU.value);
   }
@@ -700,6 +734,48 @@ class MainPage extends Component {
                 SignTX
               </button>
             </div>
+          </div>
+          <div className="row mt-2 input-group">
+            <input
+              type="text"
+              className="form-control"
+              placeholder="KeyPath"
+              ref={el => (this.inputKeyPath = el)}
+              disabled={!this.state.isSmartcardConnected}
+            />
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Count"
+              ref={el => (this.inputCount = el)}
+              disabled={!this.state.isSmartcardConnected}
+            />
+            <div className="input-group-append">
+              <button
+                className="btn btn-primary"
+                onClick={this.onClickGetAddressList.bind(this)}
+                disabled={!this.state.isSmartcardConnected}
+              >
+                GetAddressList
+              </button>
+            </div>
+            <div className="input-group-append">
+              <button
+                className="btn btn-primary"
+                onClick={this.onClickGetAddressInfo.bind(this)}
+                disabled={!this.state.isSmartcardConnected}
+              >
+                GetAddressInfo
+              </button>
+            </div>
+          </div>
+          <div className="row mt-2 input-group">
+            <textarea
+              className="form-control text-monospace"
+              placeholder="addressInfo"
+              ref={el => (this.outputAddressInfo = el)}
+              disabled={!this.state.isSmartcardConnected}
+            />
           </div>
           <div className="row mt-2 input-group">
             <input

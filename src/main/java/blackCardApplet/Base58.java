@@ -4,25 +4,28 @@ import javacard.framework.Util;
 
 public class Base58 {
 
-    public static short encode(byte[] in, short inOffset, short inLength, byte[] out, short outOffset, byte[] scratch,
+    public static short encode(byte[] in, short inOffset, short inLength, byte[] out, short outOffset, byte[] scratch50,
             short scratchOffset) {
+        if (inLength > 50) {
+            return 0;
+        }
         short zeroCount = (short) 0, j, startAt;
         while ((zeroCount < inLength) && (in[(short) (inOffset + zeroCount)] == 0)) {
             ++zeroCount;
         }
-        Util.arrayCopyNonAtomic(in, inOffset, scratch, scratchOffset, inLength);
+        Util.arrayCopyNonAtomic(in, inOffset, scratch50, scratchOffset, inLength);
         j = (short) (2 * inLength);
         startAt = zeroCount;
         while (startAt < inLength) {
             short remainder = 0;
             short divLoop;
             for (divLoop = startAt; divLoop < inLength; divLoop++) {
-                short digit256 = (short) (scratch[(short) (scratchOffset + divLoop)] & 0xff);
+                short digit256 = (short) (scratch50[(short) (scratchOffset + divLoop)] & 0xff);
                 short tmpDiv = (short) (remainder * 256 + digit256);
-                scratch[(short) (scratchOffset + divLoop)] = (byte) (tmpDiv / 58);
+                scratch50[(short) (scratchOffset + divLoop)] = (byte) (tmpDiv / 58);
                 remainder = (short) (tmpDiv % 58);
             }
-            if (scratch[(short) (scratchOffset + startAt)] == 0) {
+            if (scratch50[(short) (scratchOffset + startAt)] == 0) {
                 ++startAt;
             }
             out[(short) (outOffset + --j)] = ALPHABET[remainder];
