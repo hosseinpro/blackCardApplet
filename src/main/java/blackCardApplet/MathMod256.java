@@ -53,4 +53,14 @@ class MathMod256 {
         return ci;
     }
 
+    protected static short sub(byte[] c, short c_off, byte[] a, short a_off, byte[] b, short b_off, short length) {
+        short ci = 0;
+        for (short i = (short) (length - 1); i >= 0; i--) {
+            ci = (short) ((short) (a[(short) (a_off + i)] & 0xFF) - (short) (b[(short) (b_off + i)] & 0xFF) - ci);
+            c[(short) (c_off + i)] = (byte) ci;
+            ci = (short) (((ci >> 8) != 0) ? 1 : 0);
+        }
+        return ci;
+    }
+
 }

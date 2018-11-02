@@ -125,13 +125,13 @@ public class Display {
 		return displayMessage(scratch, offset, scratch, offset);
 	}
 
-	public boolean displayAddress(short addressType, byte[] address, short addressOffset, short addressLength,
+	public boolean displayAddress(short coin, byte[] address, short addressOffset, short addressLength,
 			byte[] scratch) {
-		switch (addressType) {
-		case blackCardApplet.BTCTestNet:
+		switch (coin) {
+		case BIP.TST:
 			Util.arrayCopyNonAtomic(BTCTestNet, (short) 0, scratch, (short) 0, (short) 3);
 			break;
-		case blackCardApplet.BTCMainNet:
+		case BIP.BTC:
 			Util.arrayCopyNonAtomic(BTCMainNet, (short) 0, scratch, (short) 0, (short) 3);
 			break;
 		default:

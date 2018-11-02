@@ -53,7 +53,7 @@ class BlackCard {
   }
 
   static padHex(hex, numberOfDigits) {
-    const str = "00000000" + hex;
+    const str = "0000000000000000" + hex;
     const r = str.substring(str.length - numberOfDigits);
     return r;
   }
@@ -344,6 +344,43 @@ class BlackCard {
         );
       }
       return { addressList };
+    });
+  }
+
+  signTx(
+    fund,
+    spend,
+    fee,
+    destAddress,
+    changeKeyPath,
+    inputSection,
+    signerkeyPaths
+  ) {
+    //ISO/IEC 7816-8 2004 Section 5.2 and 5.4
+    //INS=2A
+    //P1=9E: digital signature
+    //P2=9A: plain data to be signed
+
+    let payload =
+      BlackCard.padHex(fund.toString(16), 16) +
+      BlackCard.padHex(spend.toString(16), 16) +
+      BlackCard.padHex(fee.toString(16), 16) +
+      destAddress +
+      changeKeyPath +
+      inputSection +
+      signerkeyPaths;
+
+    let payloadLength = "";
+    if (payload.length / 2 <= 255) {
+      payloadLength = BlackCard.padHex((payload.length / 2).toString(16), 2);
+    } else {
+      payloadLength =
+        "00" + BlackCard.padHex((payload.length / 2).toString(16), 4);
+    }
+    const apduSignTx = "00 2A 9E 9A " + payloadLength + payload;
+    return this.transmit(apduSignTx, responseAPDU => {
+      const signedTx = responseAPDU.data;
+      return { signedTx };
     });
   }
 

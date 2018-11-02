@@ -3,6 +3,7 @@ import React, { Component } from "react";
 import SmartcardBridgeClient from "../lib/smartcardBridgeClient";
 import BlackCard from "../lib/blackCard";
 import bs58 from "bs58";
+import axios from "axios";
 
 class MainPage extends Component {
   constructor(props) {
@@ -344,59 +345,59 @@ class MainPage extends Component {
       });
   }
 
-  onClickSignTx(e) {
-    // long fund = btc2satoshi(10);//from webservice
-    // long spend = btc2satoshi(1);//from user
-    // int txSize = 226;
-    // int feeRate = 5; // satoshi/byte
-    // long fee = txSize * feeRate;
-    // long change = fund - spend - fee;
-    // String preTxHash = "071188b73ca5dafb1aeb384cb834dfd8bbd56bf0436c4c6b01ed08a852da7e9d";//from webservice
-    // int UTXOindex = 0;//from webservice
-    // String hashSignerPubKey = "7534ed3da28dc41d93903b33c92833fe0c339e9a";//extract from webservice response
-    // String hashSpendPubKey = "3c88aa4c355a9468fa2d35f02fdf6e8cda71e55d";//from user
-    // String hashChangePubKey = hashSignerPubKey;//same as signer until HD
-    // String version = "01000000";
-    // int inputCount = 1;
-    // String[] inputPreTxHash = new String[inputCount];
-    // String[] inputUTXOindex = new String[inputCount];
-    // String[] inputScript = new String[inputCount];
-    // String[] inputSequence = new String[inputCount];
-    // //for inputCount
-    // inputPreTxHash[0] = preTxHash;
-    // inputUTXOindex[0] = String.format("%08X", UTXOindex);
-    // inputScript[0] = "1976a914" + hashSignerPubKey + "88ac";
-    // inputSequence[0] = "ffffffff";
-    // String outputCount = "02";
-    // String spendValue = String.format("%016X", Long.reverseBytes(spend));
-    // String spendScript = "1976a914" + hashSpendPubKey + "88ac";
-    // String changeValue = String.format("%016X", Long.reverseBytes(change));
-    // String changeScript = "1976a914" + hashChangePubKey + "88ac";
-    // String lockTime = "00000000";
-    // String unknown = "01000000";
-    // String toSignTx =
-    //         version +
-    //         String.format("%02X", inputCount);
-    // for(int i=0 ; i<inputCount ; i++)
-    // {
-    //     toSignTx += inputPreTxHash[i] +
-    //             inputUTXOindex[i] +
-    //             inputScript[i] +
-    //             inputSequence[i];
-    // }
-    // toSignTx +=
-    //         outputCount +
-    //         spendValue +
-    //         spendScript +
-    //         changeValue +
-    //         changeScript +
-    //         lockTime +
-    //         unknown;
-    // //txtSignedTX.setText(toSignTx);
-    // //String signedTx = bluecard.signTransaction(toSignTx);
-    // String signedTx = bluecard.test(toSignTx);
-    // txtSignedTX.setText(signedTx);
-  }
+  // onClickSignTx(e) {
+  // long fund = btc2satoshi(10);//from webservice
+  // long spend = btc2satoshi(1);//from user
+  // int txSize = 226;
+  // int feeRate = 5; // satoshi/byte
+  // long fee = txSize * feeRate;
+  // long change = fund - spend - fee;
+  // String preTxHash = "071188b73ca5dafb1aeb384cb834dfd8bbd56bf0436c4c6b01ed08a852da7e9d";//from webservice
+  // int UTXOindex = 0;//from webservice
+  // String hashSignerPubKey = "7534ed3da28dc41d93903b33c92833fe0c339e9a";//extract from webservice response
+  // String hashSpendPubKey = "3c88aa4c355a9468fa2d35f02fdf6e8cda71e55d";//from user
+  // String hashChangePubKey = hashSignerPubKey;//same as signer until HD
+  // String version = "01000000";
+  // int inputCount = 1;
+  // String[] inputPreTxHash = new String[inputCount];
+  // String[] inputUTXOindex = new String[inputCount];
+  // String[] inputScript = new String[inputCount];
+  // String[] inputSequence = new String[inputCount];
+  // //for inputCount
+  // inputPreTxHash[0] = preTxHash;
+  // inputUTXOindex[0] = String.format("%08X", UTXOindex);
+  // inputScript[0] = "1976a914" + hashSignerPubKey + "88ac";
+  // inputSequence[0] = "ffffffff";
+  // String outputCount = "02";
+  // String spendValue = String.format("%016X", Long.reverseBytes(spend));
+  // String spendScript = "1976a914" + hashSpendPubKey + "88ac";
+  // String changeValue = String.format("%016X", Long.reverseBytes(change));
+  // String changeScript = "1976a914" + hashChangePubKey + "88ac";
+  // String lockTime = "00000000";
+  // String unknown = "01000000";
+  // String toSignTx =
+  //         version +
+  //         String.format("%02X", inputCount);
+  // for(int i=0 ; i<inputCount ; i++)
+  // {
+  //     toSignTx += inputPreTxHash[i] +
+  //             inputUTXOindex[i] +
+  //             inputScript[i] +
+  //             inputSequence[i];
+  // }
+  // toSignTx +=
+  //         outputCount +
+  //         spendValue +
+  //         spendScript +
+  //         changeValue +
+  //         changeScript +
+  //         lockTime +
+  //         unknown;
+  // //txtSignedTX.setText(toSignTx);
+  // //String signedTx = bluecard.signTransaction(toSignTx);
+  // String signedTx = bluecard.test(toSignTx);
+  // txtSignedTX.setText(signedTx);
+  // }
 
   //   long btc2satoshi(long btc) {
   //     return btc * 100000000;
@@ -417,12 +418,9 @@ class MainPage extends Component {
         let addressInfo = [];
         for (let i = 0; i < res.addressList.length; i++) {
           const address = bs58.encode(Buffer.from(res.addressList[i], "hex"));
-          //const address = BlackCard.hex2Ascii(res.addressList[i]);
           const keyPath =
             keyPath_no_index +
             BlackCard.padHex((address_index + i).toString(16), 4);
-          //balance
-          //lastTx
           addressInfo[i] = { address, keyPath };
         }
         this.setState({ addressInfo });
@@ -436,7 +434,122 @@ class MainPage extends Component {
       });
   }
 
-  onClickGetAddressInfo(e) {}
+  onClickGetAddressInfo(e) {
+    let addressInfo = this.state.addressInfo;
+    for (let i = 0; i < addressInfo.length; i++) {
+      axios
+        .get(
+          "https://api.blockcypher.com/v1/btc/test3/addrs/" +
+            addressInfo[i].address +
+            "?unspentOnly=true"
+        )
+        .then(res => {
+          addressInfo[i].balance = res.data.balance;
+          if (res.data.txrefs != null) {
+            addressInfo[i].txs = [];
+            let tx = {};
+            for (let j = 0; j < res.data.txrefs.length; j++) {
+              tx.txHash = res.data.txrefs[j].tx_hash;
+              tx.utxo = res.data.txrefs[j].tx_output_n;
+              tx.value = res.data.txrefs[j].value;
+              addressInfo[i].txs[j] = Object.assign({}, tx);
+            }
+          }
+
+          this.setState({ addressInfo });
+
+          this.outputAddressInfo.value = JSON.stringify(
+            this.state.addressInfo
+          ).replace(",{", ",\n{");
+        });
+    }
+  }
+
+  onClickSignTx(e) {
+    let addressInfo = this.state.addressInfo;
+    const spend = parseInt(this.inputSpend.value);
+    const fee = parseInt(this.inputFee.value);
+    const requiredFund = spend + fee;
+    let availableFund = 0;
+    let txInputCount = 0;
+    let inputSection = "";
+    let signerkeyPaths = "";
+    for (
+      let i = 0;
+      i < addressInfo.length && availableFund < requiredFund;
+      i++
+    ) {
+      if (addressInfo[i].txs != null) {
+        for (
+          let j = 0;
+          j < addressInfo[i].txs.length && availableFund < requiredFund;
+          j++
+        ) {
+          availableFund += parseInt(addressInfo[i].txs[j].value);
+          txInputCount++;
+          inputSection += addressInfo[i].txs[j].txHash;
+          inputSection += BlackCard.padHex(
+            parseInt(addressInfo[i].txs[j].utxo).toString(16),
+            8
+          );
+          let publicKeyHash = bs58
+            .decode(addressInfo[i].address)
+            .toString("Hex");
+          publicKeyHash = publicKeyHash.substring(2, 42);
+          inputSection += "1976a914" + publicKeyHash + "88ac";
+          inputSection += "FFFFFFFF";
+          signerkeyPaths += addressInfo[i].keyPath;
+        }
+      }
+    }
+
+    if (availableFund < requiredFund) {
+      this.inputOutputSignedTx.value = "Not enough fund!";
+      return;
+    }
+
+    inputSection =
+      BlackCard.padHex(txInputCount.toString(16), 2) + inputSection;
+
+    const fund = availableFund;
+    const destAddress = bs58
+      .decode(this.inputDestAddress.value)
+      .toString("Hex");
+
+    const changeKeyPath = this.inputChangeKeyPath.value;
+
+    this.state.blackCard
+      .signTx(
+        fund,
+        spend,
+        fee,
+        destAddress,
+        changeKeyPath,
+        inputSection,
+        signerkeyPaths
+      )
+      .then(res => {
+        this.inputOutputSignedTx.value = res.signedTx;
+      })
+      .catch(err => {
+        console.log(err);
+      });
+  }
+
+  onClickPushTx(e) {
+    const signedTx = { tx: this.inputOutputSignedTx.value };
+    axios
+      .post(
+        "https://api.blockcypher.com/v1/btc/test3/txs/push",
+        JSON.stringify(signedTx)
+      )
+      .then(res => {
+        console.log(res);
+      })
+      .catch(error => {
+        console.log(error);
+      });
+  }
 
   onClickTransmit(e) {
     this.cardreaderTransmit(this.inputCommandAPDU.value);
@@ -721,24 +834,6 @@ class MainPage extends Component {
             <input
               type="text"
               className="form-control"
-              placeholder="Tx"
-              ref={el => (this.inputTx = el)}
-              disabled={!this.state.isSmartcardConnected}
-            />
-            <div className="input-group-append">
-              <button
-                className="btn btn-primary"
-                onClick={this.onClickSignTx.bind(this)}
-                disabled={!this.state.isSmartcardConnected}
-              >
-                SignTX
-              </button>
-            </div>
-          </div>
-          <div className="row mt-2 input-group">
-            <input
-              type="text"
-              className="form-control"
               placeholder="KeyPath"
               ref={el => (this.inputKeyPath = el)}
               disabled={!this.state.isSmartcardConnected}
@@ -776,6 +871,63 @@ class MainPage extends Component {
               ref={el => (this.outputAddressInfo = el)}
               disabled={!this.state.isSmartcardConnected}
             />
+          </div>
+          <div className="row mt-2 input-group">
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Spend (satoshi)"
+              ref={el => (this.inputSpend = el)}
+              disabled={!this.state.isSmartcardConnected}
+            />
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Fee (satoshi)"
+              ref={el => (this.inputFee = el)}
+              disabled={!this.state.isSmartcardConnected}
+            />
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Dest. Address"
+              ref={el => (this.inputDestAddress = el)}
+              disabled={!this.state.isSmartcardConnected}
+            />
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Change KeyPath"
+              ref={el => (this.inputChangeKeyPath = el)}
+              disabled={!this.state.isSmartcardConnected}
+            />
+            <div className="input-group-append">
+              <button
+                className="btn btn-primary"
+                onClick={this.onClickSignTx.bind(this)}
+                disabled={!this.state.isSmartcardConnected}
+              >
+                SignTX
+              </button>
+            </div>
+          </div>
+          <div className="row mt-2 input-group">
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Signed Tx"
+              ref={el => (this.inputOutputSignedTx = el)}
+              disabled={!this.state.isSmartcardConnected}
+            />
+            <div className="input-group-append">
+              <button
+                className="btn btn-primary"
+                onClick={this.onClickPushTx.bind(this)}
+                disabled={!this.state.isSmartcardConnected}
+              >
+                PushTX
+              </button>
+            </div>
           </div>
           <div className="row mt-2 input-group">
             <input

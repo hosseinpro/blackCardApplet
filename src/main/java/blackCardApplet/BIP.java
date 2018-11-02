@@ -153,7 +153,7 @@ class BIP {
 
         // HMAC-SHA512(key=cPar, data=input) => iL|iR
         short iL_index = (short) (scratchOffset + 40);
-        hmacDerivedKey.setKey(kcPar64, (short) 32, (short) 32);
+        hmacDerivedKey.setKey(kcPar64, (short) (kcParOffset + 32), (short) 32);
         hmacSignature.init(hmacDerivedKey, Signature.MODE_SIGN);
         hmacSignature.sign(scratch104, (short) (scratchOffset + 0), (short) 37, scratch104, iL_index);
 
@@ -233,12 +233,15 @@ class BIP {
             // ec256PrivateKeyToPublicKey(privateKey32, privateKeyOffset, publicKeys,
             // (short) (publicKeysOffset + (short) (i * 65)), false);
             // resultLen += 65;
-            publicKeyLen = ec256PrivateKeyToPublicKey(privateKey32, privateKeyOffset, scratch232,
-                    (short) (scratchOffset + 64), true);
-            addressLen = publicKeyToAddress(coin, scratch232, (short) (scratchOffset + 64), publicKeyLen, addressList,
-                    (short) (addressOffset + resultLen), false, scratch232, (short) (scratchOffset + 100));
+            if (addressList != null) {
+                publicKeyLen = ec256PrivateKeyToPublicKey(privateKey32, privateKeyOffset, scratch232,
+                        (short) (scratchOffset + 64), true);
+                addressLen = publicKeyToAddress(coin, scratch232, (short) (scratchOffset + 64), publicKeyLen,
+                        addressList, (short) (addressOffset + resultLen), false, scratch232,
+                        (short) (scratchOffset + 100));
 
-            resultLen += addressLen;
+                resultLen += addressLen;
+            }
         }
         return resultLen;
     }

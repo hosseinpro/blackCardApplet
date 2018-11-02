@@ -7,7 +7,7 @@ class App extends Component {
     return (
       <div className="App">
         <div className="container">
-          <h3 className="mt-4">BlackCard Web App</h3>
+          <h3 className="mt-4">BlackCard Tester</h3>
           <MainPage smartcardBridgeAddress="http://localhost:3333" />
           {/* <MainPage smartcardBridgeAddress="http://192.168.56.2:3333" /> */}
         </div>
