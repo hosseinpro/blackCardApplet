@@ -465,6 +465,25 @@ class MainPage extends Component {
     }
   }
 
+  onClickSetTxInput(e) {
+    let addressInfo = this.state.addressInfo;
+    addressInfo[0].txs = [];
+    let tx = {};
+    tx.txHash = this.inputPrevTxHash.value;
+    tx.utxo = this.inputPrevTxUTXO.value;
+    tx.value = this.inputPrevTxValue.value;
+    addressInfo[0].txs[0] = Object.assign({}, tx);
+    this.setState({ addressInfo });
+  }
+
+  rotateTxID(txID) {
+    let txID2 = "";
+    for (let i = txID.length; i >= 2; i -= 2) {
+      txID2 += txID.substring(i - 2, i);
+    }
+    return txID2;
+  }
+
   onClickSignTx(e) {
     let addressInfo = this.state.addressInfo;
     const spend = parseInt(this.inputSpend.value);
@@ -487,7 +506,7 @@ class MainPage extends Component {
         ) {
           availableFund += parseInt(addressInfo[i].txs[j].value);
           txInputCount++;
-          inputSection += addressInfo[i].txs[j].txHash;
+          inputSection += this.rotateTxID(addressInfo[i].txs[j].txHash);
           inputSection += BlackCard.padHex(
             parseInt(addressInfo[i].txs[j].utxo).toString(16),
             8
@@ -497,6 +516,7 @@ class MainPage extends Component {
             .toString("Hex");
           publicKeyHash = publicKeyHash.substring(2, 42);
           inputSection += "1976a914" + publicKeyHash + "88ac";
+          //inputSection += "00";
           inputSection += "FFFFFFFF";
           signerkeyPaths += addressInfo[i].keyPath;
         }
@@ -871,6 +891,38 @@ class MainPage extends Component {
               ref={el => (this.outputAddressInfo = el)}
               disabled={!this.state.isSmartcardConnected}
             />
+          </div>
+          <div className="row mt-2 input-group">
+            <input
+              type="text"
+              className="form-control"
+              placeholder="prevTxHash"
+              ref={el => (this.inputPrevTxHash = el)}
+              disabled={!this.state.isSmartcardConnected}
+            />
+            <input
+              type="text"
+              className="form-control"
+              placeholder="prevTxUTXO"
+              ref={el => (this.inputPrevTxUTXO = el)}
+              disabled={!this.state.isSmartcardConnected}
+            />
+            <input
+              type="text"
+              className="form-control"
+              placeholder="prevTxValue"
+              ref={el => (this.inputPrevTxValue = el)}
+              disabled={!this.state.isSmartcardConnected}
+            />
+            <div className="input-group-append">
+              <button
+                className="btn btn-primary"
+                onClick={this.onClickSetTxInput.bind(this)}
+                disabled={!this.state.isSmartcardConnected}
+              >
+                SetTxInput
+              </button>
+            </div>
           </div>
           <div className="row mt-2 input-group">
             <input

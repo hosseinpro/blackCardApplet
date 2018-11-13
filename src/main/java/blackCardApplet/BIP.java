@@ -233,15 +233,14 @@ class BIP {
             // ec256PrivateKeyToPublicKey(privateKey32, privateKeyOffset, publicKeys,
             // (short) (publicKeysOffset + (short) (i * 65)), false);
             // resultLen += 65;
-            if (addressList != null) {
-                publicKeyLen = ec256PrivateKeyToPublicKey(privateKey32, privateKeyOffset, scratch232,
-                        (short) (scratchOffset + 64), true);
-                addressLen = publicKeyToAddress(coin, scratch232, (short) (scratchOffset + 64), publicKeyLen,
-                        addressList, (short) (addressOffset + resultLen), false, scratch232,
-                        (short) (scratchOffset + 100));
+            // if (addressList != null) {
+            publicKeyLen = ec256PrivateKeyToPublicKey(privateKey32, privateKeyOffset, scratch232,
+                    (short) (scratchOffset + 64), true);
+            addressLen = publicKeyToAddress(coin, scratch232, (short) (scratchOffset + 64), publicKeyLen, addressList,
+                    (short) (addressOffset + resultLen), false, scratch232, (short) (scratchOffset + 100));
 
-                resultLen += addressLen;
-            }
+            resultLen += addressLen;
+            // }
         }
         return resultLen;
     }
