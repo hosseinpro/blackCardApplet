@@ -516,7 +516,6 @@ class MainPage extends Component {
             .toString("Hex");
           publicKeyHash = publicKeyHash.substring(2, 42);
           inputSection += "1976a914" + publicKeyHash + "88ac";
-          //inputSection += "00";
           inputSection += "FFFFFFFF";
           signerkeyPaths += addressInfo[i].keyPath;
         }
@@ -615,8 +614,8 @@ class MainPage extends Component {
                     this.state.osName === "Windows"
                       ? "https://github.com/hosseinpro/smartcardPage/releases/download/v1.1.0/smartcardbridge-1.1.0.Setup.exe"
                       : this.state.osName === "MacOS"
-                        ? "https://github.com/hosseinpro/smartcardPage/releases/download/v1.1.0/smartcardbridge-darwin-x64-1.1.0.zip"
-                        : ""
+                      ? "https://github.com/hosseinpro/smartcardPage/releases/download/v1.1.0/smartcardbridge-darwin-x64-1.1.0.zip"
+                      : ""
                   }
                   role="button"
                 >
