@@ -354,7 +354,7 @@ class BlackCard {
     destAddress,
     changeKeyPath,
     inputSection,
-    signerkeyPaths
+    signerKeyPaths
   ) {
     //ISO/IEC 7816-8 2004 Section 5.2 and 5.4
     //INS=2A
@@ -368,7 +368,7 @@ class BlackCard {
       destAddress +
       changeKeyPath +
       inputSection +
-      signerkeyPaths;
+      signerKeyPaths;
 
     let payloadLength = "";
     if (payload.length / 2 <= 255) {
@@ -378,6 +378,42 @@ class BlackCard {
         "00" + BlackCard.padHex((payload.length / 2).toString(16), 4);
     }
     const apduSignTx = "00 2A 9E 9A " + payloadLength + payload;
+    return this.transmit(apduSignTx, responseAPDU => {
+      const signedTx = responseAPDU.data;
+      return { signedTx };
+    });
+  }
+
+  generateSubWalletTx(
+    fund,
+    spend,
+    fee,
+    numOfSub,
+    firstSubKeyPath,
+    changeKeyPath,
+    inputSection,
+    signerKeyPaths
+  ) {
+    //ISO/IEC 7816-8 2004 Section 5.2 and 5.4
+    //INS=2A
+    //P1=9F: 9E is digital signature
+    //P2=9A: plain data to be signed
+    //LC=00 XXXX: data length
+    //LE=0000: max response length
+
+    let payload =
+      BlackCard.padHex(fund.toString(16), 16) +
+      BlackCard.padHex(spend.toString(16), 16) +
+      BlackCard.padHex(fee.toString(16), 16) +
+      BlackCard.padHex(numOfSub.toString(16), 2) +
+      firstSubKeyPath +
+      changeKeyPath +
+      inputSection +
+      signerKeyPaths;
+
+    let payloadLength =
+      "00" + BlackCard.padHex((payload.length / 2).toString(16), 4);
+    const apduSignTx = "00 2A 9F 9A " + payloadLength + payload + "0000";
     return this.transmit(apduSignTx, responseAPDU => {
       const signedTx = responseAPDU.data;
       return { signedTx };

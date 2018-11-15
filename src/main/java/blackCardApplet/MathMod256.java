@@ -63,4 +63,24 @@ class MathMod256 {
         return ci;
     }
 
+    // c = a[nB] / b[1B]
+    protected static void div(byte[] c, short c_off, byte[] a, short a_off, byte b, short length) {
+        short r = 0;
+        short t = 0;
+        short ci = 0;
+        for (short i = 0; i < length; i++) {
+            t = (short) (r << 4);
+            t = (short) (t | (short) ((short) (a[i + a_off] & 0xF0) >> 4));
+            r = (short) (t % b);
+            ci = (short) ((short) (t / b) << 4);
+
+            t = (short) (r << 4);
+            t = (short) (t | (short) (a[i + a_off] & 0x0F));
+            r = (short) (t % b);
+            ci = (short) (ci | (t / b));
+
+            c[i + c_off] = (byte) ci;
+        }
+    }
+
 }

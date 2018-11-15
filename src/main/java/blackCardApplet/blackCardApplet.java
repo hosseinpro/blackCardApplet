@@ -13,7 +13,6 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
     private static final byte SERIALNUMBER_SIZE = 8;
     private static final short SW_PIN_INCORRECT_TRIES_LEFT = (short) 0x63C0;
     private static final short LABEL_SIZE_MAX = 16;
-    private static final short HASH_SIZE = 32;
     private static final short MSEED_SIZE = 64;
 
     private static OwnerPIN pin;
@@ -43,7 +42,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
     private Cipher aesCBCCipher;
 
     private byte[] main500;
-    private byte[] scratch328;
+    private byte[] scratch515;
 
     private static Display display;
     private static TX2 tx2;
@@ -85,7 +84,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         transportKey = new KeyPair(KeyPair.ALG_EC_FP, KeyBuilder.LENGTH_EC_FP_256);
 
         main500 = JCSystem.makeTransientByteArray((short) 500, JCSystem.CLEAR_ON_DESELECT);
-        scratch328 = JCSystem.makeTransientByteArray((short) 328, JCSystem.CLEAR_ON_DESELECT);
+        scratch515 = JCSystem.makeTransientByteArray((short) 515, JCSystem.CLEAR_ON_DESELECT);
 
         sha256 = MessageDigest.getInstance(MessageDigest.ALG_SHA_256, false);
         signature = Signature.getInstance(Signature.ALG_ECDSA_SHA_256, false);
@@ -96,7 +95,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
 
     public void process(APDU apdu) {
         if (selectingApplet()) {
-            display.displayWelcome(version, label, labelLength, scratch328);
+            display.displayWelcome(version, label, labelLength, scratch515);
             return;
         }
 
@@ -135,6 +134,8 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
                 processRemoveMasterSeed(apdu);
             } else if ((ins == (byte) 0x2A) && (p1 == (byte) 0x9E) && (p2 == (byte) 0x9A)) {
                 processSignTransaction(apdu);
+            } else if ((ins == (byte) 0x2A) && (p1 == (byte) 0x9F) && (p2 == (byte) 0x9A)) {
+                processGenerateSubWalletTransaction(apdu);
             } else if ((ins == (byte) 0x46) && (p1 == (byte) 0x80) && (p2 == (byte) 0x00)) {
                 processGenerateTransportKey(apdu);
             } else if ((ins == (byte) 0xD1) && (p1 == (byte) 0xBC) && (p2 == (byte) 0x04)) {
@@ -166,76 +167,46 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         byte[] buf = apdu.getBuffer();
         short lc = apdu.getIncomingLength();
 
-        byte[] path = { 0x6D, 0x2C, 0x01, 0x00, 0x00, 0x00, 0x00 };
+        short moffset = 500;
 
-        // byte[] hash = { (byte) 0x9f, 0x58, (byte) 0x8a, 0x33, (byte) 0xd6, 0x26,
-        // (byte) 0xac, (byte) 0xe9, 0x4e, 0x3d,
-        // (byte) 0xbd, 0x1e, 0x24, 0x52, 0x5d, (byte) 0xc3, (byte) 0xa6, (byte) 0xb5,
-        // (byte) 0xab, (byte) 0x81,
-        // (byte) 0x90, (byte) 0xb3, (byte) 0xf4, 0x43, 0x5c, 0x18, (byte) 0xf1, (byte)
-        // 0xd2, 0x55, (byte) 0xe7,
-        // 0x42, 0x47 };
-        byte[] hash = { (byte) 0xa6, (byte) 0xbb, 0x43, 0x7f, 0x51, (byte) 0xb1, 0x50, (byte) 0xfb, 0x04, 0x35, 0x34,
-                0x68, (byte) 0x83, 0x09, (byte) 0xc6, 0x60, 0x65, 0x7e, (byte) 0xe0, 0x2d, 0x3e, 0x79, (byte) 0xdf,
-                0x47, 0x43, (byte) 0x8a, 0x6a, (byte) 0xcc, (byte) 0xfe, 0x4a, (byte) 0xe9, 0x78 };
+        short sendlength = 0;
+        short sendoffset = 0;
+        short le = apdu.setOutgoing();
 
-        bip.bip44DerivePath(mseed, (short) 0, MSEED_SIZE, path, (short) 0, main500, (short) 0, (short) 1, main500,
-                (short) 32, scratch328, (short) 0);
+        byte p = APDU.getProtocol();
+        if (p == APDU.PROTOCOL_T0) {
+            p = 0;
+        } else if (p == APDU.PROTOCOL_T1) {
+            p = 1;
+        }
 
-        short publicKeyLength = bip.ec256PrivateKeyToPublicKey(main500, (short) 0, main500, (short) 100, false);
+        try {
+            apdu.setOutgoingLength((short) 500);
+        } catch (APDUException e) {
+            short reason = e.getReason();
+            short i = 0;
+            switch (reason) {
+            case APDUException.ILLEGAL_USE:
+                i = 1;
+                break;
+            case APDUException.BAD_LENGTH:
+                i = 2;
+                break;
+            case APDUException.NO_T0_GETRESPONSE:
+                i = 2;
+                break;
+            case APDUException.NO_T0_REISSUE:
+                i = 2;
+                break;
+            case APDUException.IO_ERROR:
+                i = 2;
+                break;
+            }
 
-        Secp256k1.setCommonCurveParameters(signKey);
-        signKey.setS(main500, (short) 0, (short) 32);
-        signature.init(signKey, Signature.MODE_SIGN);
-        short signatureLen = signature.sign(hash, (short) 0, (short) 32, main500, (short) 0);
+        }
 
-        apdu.setOutgoing();
-        apdu.setOutgoingLength(signatureLen);
-        apdu.sendBytesLong(main500, (short) 0, signatureLen);
+        apdu.sendBytesLong(main500, (short) 0, (short) 500);
 
-        // apdu.setIncomingAndReceive();
-        // byte[] buf = apdu.getBuffer();
-        // short lc = apdu.getIncomingLength();
-
-        // Util.arrayCopyNonAtomic(buf, OFFSET_CDATA, hashBuffer, (short) 0, lc);
-
-        // bip.bip32GenerateMasterKey(mseed, (short) 0, MSEED_SIZE, BIP.BITCOIN,
-        // mainBuffer, (short) 0);
-
-        // bip.bip32DerivePrivateKey(mainBuffer, (short) 0, (short) 0, true, mainBuffer,
-        // (short) 0, scratchBuffer,
-        // (short) 0);
-
-        // short pubKeyLen = bip.ec256PrivateKeyToPublicKey(mainBuffer, (short) 0,
-        // mainBuffer, (short) 70, true);
-
-        // apdu.setOutgoing();
-        // apdu.setOutgoingLength(pubKeyLen);
-        // apdu.sendBytesLong(mainBuffer, (short) 70, pubKeyLen);
-
-        // short masterPrivateKeyLength = ((ECPrivateKey)
-        // masterKey.getPrivate()).getS(mainBuffer, (short) 0);
-
-        // apdu.setOutgoing();
-        // apdu.setOutgoingLength(masterPrivateKeyLength);
-        // apdu.sendBytesLong(mainBuffer, (short) 0, masterPrivateKeyLength);
-
-        // rsaKey.genKeyPair();
-
-        // crtKey.genKeyPair();
-
-        // apdu.setIncomingAndReceive();
-        // byte[] buf = apdu.getBuffer();
-        // short lc = apdu.getIncomingLength();
-
-        // Util.arrayCopyNonAtomic(buf, OFFSET_CDATA, mainBuffer, (short) 0, lc);
-
-        // short b58Len = Base58.encode(mainBuffer, (short) 0, lc, scratchBuffer,
-        // (short) 0, scratchBuffer, (short) 100);
-
-        // apdu.setOutgoing();
-        // apdu.setOutgoingLength(b58Len);
-        // apdu.sendBytesLong(scratchBuffer, (short) 0, b58Len);
     }
 
     private void processGetSerialNumber(APDU apdu) {
@@ -441,14 +412,14 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         Util.arrayCopyNonAtomic(buf, (short) (destAddressIndex + 1), P2PKH, (short) 4, (short) 20);
         moffset = Util.arrayCopyNonAtomic(P2PKH, (short) 0, main500, moffset, (short) (P2PKH.length));
         // change value (big endian) : change = fund - spend - fee;
-        MathMod256.sub(scratch328, (short) 0, buf, fundIndex, buf, spendIndex, (short) 8);
-        MathMod256.sub(scratch328, (short) 0, scratch328, (short) 0, buf, feeIndex, (short) 8);
-        moffset = toBigEndian(scratch328, (short) 0, main500, moffset, (short) 8);
+        MathMod256.sub(scratch515, (short) 0, buf, fundIndex, buf, spendIndex, (short) 8);
+        MathMod256.sub(scratch515, (short) 0, scratch515, (short) 0, buf, feeIndex, (short) 8);
+        moffset = toBigEndian(scratch515, (short) 0, main500, moffset, (short) 8);
         // P2SH change pub key hash
-        bip.bip44DerivePath(mseed, (short) 0, MSEED_SIZE, buf, changeKeyPathIndex, scratch328, (short) 0, (short) 1,
-                scratch328, (short) 32, scratch328, (short) 60);
+        bip.bip44DerivePath(mseed, (short) 0, MSEED_SIZE, buf, changeKeyPathIndex, scratch515, (short) 0, (short) 1,
+                scratch515, (short) 32, scratch515, (short) 60);
         // addressList: 1B len + 25B address
-        Util.arrayCopyNonAtomic(scratch328, (short) (32 + 1 + 1), P2PKH, (short) 4, (short) 20);
+        Util.arrayCopyNonAtomic(scratch515, (short) (32 + 1 + 1), P2PKH, (short) 4, (short) 20);
         moffset = Util.arrayCopyNonAtomic(P2PKH, (short) 0, main500, moffset, (short) (P2PKH.length));
         // locktime 00000000
         main500[moffset++] = 0x00;
@@ -469,22 +440,22 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         sha256.reset();
         sha256.update(main500, (short) 0, (short) 4);
         sha256.update(buf, inputSectionIndex, (short) (1 + 66));
-        sha256.doFinal(main500, outputIndex, (short) (77), scratch328, (short) 0);
+        sha256.doFinal(main500, outputIndex, (short) (77), scratch515, (short) 0);
         // hold tx hash in scratch 0..31
 
-        bip.bip44DerivePath(mseed, (short) 0, MSEED_SIZE, buf, signerKeyPathsIndex, scratch328, (short) 32, (short) 1,
-                scratch328, (short) 64, scratch328, (short) 90);// hold prikey in scratch 32..63 [32]
+        bip.bip44DerivePath(mseed, (short) 0, MSEED_SIZE, buf, signerKeyPathsIndex, scratch515, (short) 32, (short) 1,
+                scratch515, (short) 64, scratch515, (short) 90);// hold prikey in scratch 32..63 [32]
 
         Secp256k1.setCommonCurveParameters(signKey);
-        signKey.setS(scratch328, (short) 32, (short) 32);
+        signKey.setS(scratch515, (short) 32, (short) 32);
         signature.init(signKey, Signature.MODE_SIGN);
         short scriptLenIndex = moffset;
         moffset++;// 1B script Len
-        short signatureLen = signature.sign(scratch328, (short) 0, (short) 32, main500, (short) (moffset + 1));
+        short signatureLen = signature.sign(scratch515, (short) 0, (short) 32, main500, (short) (moffset + 1));
         main500[moffset] = (byte) (signatureLen + 1);// sig len + 1
         moffset += signatureLen + 1;
         main500[moffset++] = 0x01;// hash type
-        short pubKeyLen = bip.ec256PrivateKeyToPublicKey(scratch328, (short) 32, main500, (short) (moffset + 1), true);
+        short pubKeyLen = bip.ec256PrivateKeyToPublicKey(scratch515, (short) 32, main500, (short) (moffset + 1), true);
         main500[moffset++] = (byte) pubKeyLen;
         moffset += pubKeyLen;
         // x = 1B [sig len byte] + sigLen + 1B [hash type] + 1B [pubkey Len] + pubKeyLen
@@ -500,14 +471,129 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         apdu.sendBytesLong(main500, (short) 0, moffset);
     }
 
+    private void processGenerateSubWalletTransaction(APDU apdu) {
+        if (pin.isValidated() == false) {
+            ISOException.throwIt(ISO7816.SW_SECURITY_STATUS_NOT_SATISFIED);
+        }
+
+        apdu.setIncomingAndReceive();
+        byte[] buf = apdu.getBuffer();
+        short offData = apdu.getOffsetCdata();
+        short lc = apdu.getIncomingLength();
+
+        short fundIndex = offData; // 8B
+        short spendIndex = (short) (offData + 8); // 8B
+        short feeIndex = (short) (offData + 16); // 8B
+        short numOfSubIndex = (short) (offData + 24); // 1B
+        short firstSubKeyPathIndex = (short) (offData + 25); // 7B
+        short changeKeyPathIndex = (short) (offData + 32); // 7B
+        short inputSectionIndex = (short) (offData + 39); // 1B + n*66B
+        short inputCount = buf[inputSectionIndex];
+        short signerKeyPathsIndex = (short) (inputSectionIndex + 1 + (short) (inputCount * 66)); // n*7B
+
+        short moffset = 0;
+        // version 01000000
+        main500[moffset++] = 0x01;
+        main500[moffset++] = 0x00;
+        main500[moffset++] = 0x00;
+        main500[moffset++] = 0x00;
+        // inputs
+        main500[moffset++] = buf[inputSectionIndex]; // input count
+        // fill after sign
+        // output count
+        short numOfSub = buf[numOfSubIndex];
+        if (numOfSub > 10) {// Maximum number of sub wallets
+            ISOException.throwIt(ISO7816.SW_DATA_INVALID);
+        }
+        short outputLength = (short) (9 + (numOfSub + 1) * 34);
+        short outputIndex = (short) ((short) main500.length - outputLength);// Output length
+        moffset = outputIndex;
+        main500[moffset++] = (byte) (numOfSub + 1);
+
+        // Calculate subwallet addresses
+        bip.bip44DerivePath(mseed, (short) 0, MSEED_SIZE, buf, firstSubKeyPathIndex, scratch515, (short) 0, numOfSub,
+                scratch515, (short) 32, scratch515, (short) 283);// 32 + 1 + numOfSub * 25 => for max numOfSub = 283
+        short subwalletAddressIndex = 33;
+
+        // shared = spend / numOfSub
+        MathMod256.div(scratch515, (short) 0, buf, spendIndex, (byte) numOfSub, (short) 8);
+
+        for (short i = 0; i < numOfSub; i++) {
+            // spend value (big endian)
+            moffset = toBigEndian(scratch515, (short) 0, main500, moffset, (short) 8);
+            // P2SH dest pub key hash
+            Util.arrayCopyNonAtomic(scratch515, (short) (subwalletAddressIndex + 1), P2PKH, (short) 4, (short) 20);
+            moffset = Util.arrayCopyNonAtomic(P2PKH, (short) 0, main500, moffset, (short) (P2PKH.length));
+            subwalletAddressIndex += 25;
+        }
+        // change value (big endian) : change = fund - spend - fee;
+        MathMod256.sub(scratch515, (short) 0, buf, fundIndex, buf, spendIndex, (short) 8);
+        MathMod256.sub(scratch515, (short) 0, scratch515, (short) 0, buf, feeIndex, (short) 8);
+        moffset = toBigEndian(scratch515, (short) 0, main500, moffset, (short) 8);
+        // P2SH change pub key hash
+        bip.bip44DerivePath(mseed, (short) 0, MSEED_SIZE, buf, changeKeyPathIndex, scratch515, (short) 0, (short) 1,
+                scratch515, (short) 32, scratch515, (short) 60);
+        // addressList: 1B len + 25B address
+        Util.arrayCopyNonAtomic(scratch515, (short) (32 + 1 + 1), P2PKH, (short) 4, (short) 20);
+        moffset = Util.arrayCopyNonAtomic(P2PKH, (short) 0, main500, moffset, (short) (P2PKH.length));
+        // locktime 00000000
+        main500[moffset++] = 0x00;
+        main500[moffset++] = 0x00;
+        main500[moffset++] = 0x00;
+        main500[moffset++] = 0x00;
+        // hashtype 01000000
+        main500[moffset++] = 0x01;
+        main500[moffset++] = 0x00;
+        main500[moffset++] = 0x00;
+        main500[moffset++] = 0x00;
+
+        moffset = 5;// begin of inputs
+        // for (...)
+        // 32B hash + 4B UTXO
+        moffset = Util.arrayCopyNonAtomic(buf, (short) (inputSectionIndex + 1), main500, moffset, (short) 36);
+
+        sha256.reset();
+        sha256.update(main500, (short) 0, (short) 4);
+        sha256.update(buf, inputSectionIndex, (short) (1 + 66));
+        sha256.doFinal(main500, outputIndex, outputLength, scratch515, (short) 0);
+        // hold tx hash in scratch 0..31
+
+        bip.bip44DerivePath(mseed, (short) 0, MSEED_SIZE, buf, signerKeyPathsIndex, scratch515, (short) 32, (short) 1,
+                scratch515, (short) 64, scratch515, (short) 90);// hold prikey in scratch 32..63 [32]
+
+        Secp256k1.setCommonCurveParameters(signKey);
+        signKey.setS(scratch515, (short) 32, (short) 32);
+        signature.init(signKey, Signature.MODE_SIGN);
+        short scriptLenIndex = moffset;
+        moffset++;// 1B script Len
+        short signatureLen = signature.sign(scratch515, (short) 0, (short) 32, main500, (short) (moffset + 1));
+        main500[moffset] = (byte) (signatureLen + 1);// sig len + 1
+        moffset += signatureLen + 1;
+        main500[moffset++] = 0x01;// hash type
+        short pubKeyLen = bip.ec256PrivateKeyToPublicKey(scratch515, (short) 32, main500, (short) (moffset + 1), true);
+        main500[moffset++] = (byte) pubKeyLen;
+        moffset += pubKeyLen;
+        // x = 1B [sig len byte] + sigLen + 1B [hash type] + 1B [pubkey Len] + pubKeyLen
+        main500[scriptLenIndex] = (byte) (3 + signatureLen + pubKeyLen);
+        // 63 = 1B len + 32B hash + 4B UTXO + 26B script
+        moffset = Util.arrayCopyNonAtomic(buf, (short) (inputSectionIndex + 63), main500, moffset, (short) 4);// sequence
+        // end for
+
+        moffset = Util.arrayCopyNonAtomic(main500, outputIndex, main500, moffset, (short) (outputLength - 4));
+
+        apdu.setOutgoing();
+        apdu.setOutgoingLength(moffset);
+        apdu.sendBytesLong(main500, (short) 0, moffset);
+    }
+
     private short generateKCV(byte[] inBubber, short inOffset, short inLength, byte[] outBuffer, short outOffset) {
         sha256.reset();
-        short sha256Len = sha256.doFinal(inBubber, inOffset, inLength, scratch328, (short) 0);
+        short sha256Len = sha256.doFinal(inBubber, inOffset, inLength, scratch515, (short) 0);
 
-        Ripemd160.hash32(scratch328, (short) 0, scratch328, sha256Len, scratch328, (short) 60);
+        Ripemd160.hash32(scratch515, (short) 0, scratch515, sha256Len, scratch515, (short) 60);
         short ripemd160Len = (short) 20;
 
-        short b58Len = Base58.encode(scratch328, sha256Len, ripemd160Len, outBuffer, outOffset, scratch328, (short) 60);
+        short b58Len = Base58.encode(scratch515, sha256Len, ripemd160Len, outBuffer, outOffset, scratch515, (short) 60);
 
         return b58Len;
     }
@@ -525,7 +611,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
 
         short kcvLen = generateKCV(main500, (short) 0, publicKeyLength, main500, publicKeyLength);
 
-        display.displayText(main500, publicKeyLength, kcvLen, scratch328, (short) 0);
+        display.displayText(main500, publicKeyLength, kcvLen, scratch515, (short) 0);
 
         apdu.setOutgoing();
         apdu.setOutgoingLength(publicKeyLength);
@@ -561,8 +647,8 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         ecdh.init(transportKey.getPrivate());
         short resultLen = ecdh.generateSecret(main500, (short) 0, publicKeyLength, main500, publicKeyLength);
         sha256.reset();
-        sha256.doFinal(main500, publicKeyLength, resultLen, scratch328, (short) 0);
-        transportKeySecret.setKey(scratch328, (short) 0);
+        sha256.doFinal(main500, publicKeyLength, resultLen, scratch515, (short) 0);
+        transportKeySecret.setKey(scratch515, (short) 0);
 
         short kcvLen = generateKCV(main500, (short) 0, publicKeyLength, main500, publicKeyLength);
 
@@ -586,7 +672,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         // display.displayText(mainBuffer, (short) 0, (short) (b58Len + 1 + PIN_SIZE),
         // scratchBuffer, (short) 0);
 
-        display.displayText(main500, publicKeyLength, kcvLen, scratch328, (short) 0);
+        display.displayText(main500, publicKeyLength, kcvLen, scratch515, (short) 0);
     }
 
     private void processExportMasterSeed(APDU apdu) {
@@ -656,13 +742,13 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         }
 
         // Get main wallet trnsport key public : 65
-        Util.arrayCopyNonAtomic(buf, (short) (OFFSET_CDATA + 4), scratch328, (short) 0, (short) 65);
+        Util.arrayCopyNonAtomic(buf, (short) (OFFSET_CDATA + 4), scratch515, (short) 0, (short) 65);
 
         ecdh.init(transportKey.getPrivate());
-        short resultLen = ecdh.generateSecret(scratch328, (short) 0, (short) 65, scratch328, (short) 65);
+        short resultLen = ecdh.generateSecret(scratch515, (short) 0, (short) 65, scratch515, (short) 65);
         sha256.reset();
-        sha256.doFinal(scratch328, (short) 65, resultLen, scratch328, (short) (65 + resultLen));
-        transportKeySecret.setKey(scratch328, (short) (65 + resultLen));
+        sha256.doFinal(scratch515, (short) 65, resultLen, scratch515, (short) (65 + resultLen));
+        transportKeySecret.setKey(scratch515, (short) (65 + resultLen));
 
         aesCBCCipher.init(transportKeySecret, Cipher.MODE_DECRYPT);
         aesCBCCipher.doFinal(buf, (short) (OFFSET_CDATA + 71), MSEED_SIZE, mseed, (short) 0);
@@ -671,11 +757,6 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         transportKey.getPrivate().clearKey();
         transportKeySecret.clearKey();
     }
-
-    // Secp256k1.setCommonCurveParameters(((ECPrivateKey) masterKey.getPrivate()));
-    // Secp256k1.setCommonCurveParameters(((ECPublicKey) masterKey.getPublic()));
-    // ((ECPrivateKey) masterKey.getPrivate()).setS(mainBuffer, (short) 0,
-    // cipherLength);
 
     private void processImportMasterSeedPalin(APDU apdu) {
         if (pin.isValidated() == false) {
@@ -723,39 +804,11 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         }
 
         short reslutLen = bip.bip44DerivePath(mseed, (short) 0, MSEED_SIZE, buf, OFFSET_CDATA, main500, (short) 0,
-                buf[OFFSET_CDATA + 7], main500, (short) 32, scratch328, (short) 0);
-
-        // short reslutLen = bip.bip44DerivePath(mseed, (short) 0, MSEED_SIZE, buf,
-        // OFFSET_CDATA, scratch328, (short) 0,
-        // (short) 1, main500, (short) 32, scratch328, (short) 60);
+                buf[OFFSET_CDATA + 7], main500, (short) 32, scratch515, (short) 0);
 
         apdu.setOutgoing();
         apdu.setOutgoingLength(reslutLen);
         apdu.sendBytesLong(main500, (short) 32, reslutLen);
-    }
-
-    private void processECCSign(APDU apdu) {
-        /*
-         * apdu.setIncomingAndReceive(); byte[] buf = apdu.getBuffer(); //short lc =
-         * (short)(buf[OFFSET_LC]); short lc = apdu.getIncomingLength();
-         * 
-         * Util.arrayCopyNonAtomic(buf, OFFSET_CDATA, inputBuffer, (short) 0, lc);
-         * 
-         * sha256.reset(); sha256.doFinal(inputBuffer, (short)0, lc, hashBuffer,
-         * (short)0);
-         * 
-         * /*KeyPair masterKey=null; masterKey= new KeyPair(KeyPair.ALG_EC_FP,
-         * KeyBuilder.LENGTH_EC_FP_256); masterKey.genKeyPair(); privateKey =
-         * (ECPrivateKey)masterKey.getPrivate();
-         */
-
-        /*
-         * signature.init(privateKey, Signature.MODE_SIGN); short sigLen =
-         * signature.sign(hashBuffer, (short)0, (short)32, outputBuffer, (short)0);
-         * 
-         * apdu.setOutgoing(); apdu.setOutgoingLength((short) sigLen);
-         * apdu.sendBytesLong(outputBuffer, (short) 0, sigLen);
-         */
     }
 
 }

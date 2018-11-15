@@ -476,23 +476,20 @@ class MainPage extends Component {
     this.setState({ addressInfo });
   }
 
-  rotateTxID(txID) {
-    let txID2 = "";
-    for (let i = txID.length; i >= 2; i -= 2) {
-      txID2 += txID.substring(i - 2, i);
+  rotateHex(hex) {
+    let hex2 = "";
+    for (let i = hex.length; i >= 2; i -= 2) {
+      hex2 += hex.substring(i - 2, i);
     }
-    return txID2;
+    return hex2;
   }
 
-  onClickSignTx(e) {
-    let addressInfo = this.state.addressInfo;
-    const spend = parseInt(this.inputSpend.value);
-    const fee = parseInt(this.inputFee.value);
+  buildInputSection(spend, fee, addressInfo) {
     const requiredFund = spend + fee;
     let availableFund = 0;
     let txInputCount = 0;
     let inputSection = "";
-    let signerkeyPaths = "";
+    let signerKeyPaths = "";
     for (
       let i = 0;
       i < addressInfo.length && availableFund < requiredFund;
@@ -506,10 +503,12 @@ class MainPage extends Component {
         ) {
           availableFund += parseInt(addressInfo[i].txs[j].value);
           txInputCount++;
-          inputSection += this.rotateTxID(addressInfo[i].txs[j].txHash);
-          inputSection += BlackCard.padHex(
-            parseInt(addressInfo[i].txs[j].utxo).toString(16),
-            8
+          inputSection += this.rotateHex(addressInfo[i].txs[j].txHash);
+          inputSection += this.rotateHex(
+            BlackCard.padHex(
+              parseInt(addressInfo[i].txs[j].utxo).toString(16),
+              8
+            )
           );
           let publicKeyHash = bs58
             .decode(addressInfo[i].address)
@@ -517,20 +516,34 @@ class MainPage extends Component {
           publicKeyHash = publicKeyHash.substring(2, 42);
           inputSection += "1976a914" + publicKeyHash + "88ac";
           inputSection += "FFFFFFFF";
-          signerkeyPaths += addressInfo[i].keyPath;
+          signerKeyPaths += addressInfo[i].keyPath;
         }
       }
     }
 
     if (availableFund < requiredFund) {
-      this.inputOutputSignedTx.value = "Not enough fund!";
-      return;
+      return null;
     }
 
     inputSection =
       BlackCard.padHex(txInputCount.toString(16), 2) + inputSection;
 
     const fund = availableFund;
+
+    return { fund, inputSection, signerKeyPaths };
+  }
+
+  onClickSignTx(e) {
+    let addressInfo = this.state.addressInfo;
+    const spend = parseInt(this.inputSpend.value);
+    const fee = parseInt(this.inputFee.value);
+
+    let result = this.buildInputSection(spend, fee, addressInfo);
+    if (result == null) {
+      this.inputOutputSignedTx.value = "Not enough fund!";
+      return;
+    }
+
     const destAddress = bs58
       .decode(this.inputDestAddress.value)
       .toString("Hex");
@@ -539,13 +552,48 @@ class MainPage extends Component {
 
     this.state.blackCard
       .signTx(
-        fund,
+        result.fund,
         spend,
         fee,
         destAddress,
         changeKeyPath,
-        inputSection,
-        signerkeyPaths
+        result.inputSection,
+        result.signerKeyPaths
+      )
+      .then(res => {
+        this.inputOutputSignedTx.value = res.signedTx;
+      })
+      .catch(err => {
+        console.log(err);
+      });
+  }
+
+  onClickGenerateSubWalletTx(e) {
+    let addressInfo = this.state.addressInfo;
+    const spend = parseInt(this.inputSpend2.value);
+    const fee = parseInt(this.inputFee2.value);
+
+    let result = this.buildInputSection(spend, fee, addressInfo);
+    if (result == null) {
+      this.inputOutputSignedTx.value = "Not enough fund!";
+      return;
+    }
+
+    const numOfSub = parseInt(this.inputNumOfSub.value);
+    const firstSubKeyPath = this.inputFirstSubKeyPath.value;
+
+    const changeKeyPath = this.inputChangeKeyPath2.value;
+
+    this.state.blackCard
+      .generateSubWalletTx(
+        result.fund,
+        spend,
+        fee,
+        numOfSub,
+        firstSubKeyPath,
+        changeKeyPath,
+        result.inputSection,
+        result.signerKeyPaths
       )
       .then(res => {
         this.inputOutputSignedTx.value = res.signedTx;
@@ -959,6 +1007,52 @@ class MainPage extends Component {
                 disabled={!this.state.isSmartcardConnected}
               >
                 SignTX
+              </button>
+            </div>
+          </div>
+          <div className="row mt-2 input-group">
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Spend (satoshi)"
+              ref={el => (this.inputSpend2 = el)}
+              disabled={!this.state.isSmartcardConnected}
+            />
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Fee (satoshi)"
+              ref={el => (this.inputFee2 = el)}
+              disabled={!this.state.isSmartcardConnected}
+            />
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Number of subs"
+              ref={el => (this.inputNumOfSub = el)}
+              disabled={!this.state.isSmartcardConnected}
+            />
+            <input
+              type="text"
+              className="form-control"
+              placeholder="First Sub KeyPath"
+              ref={el => (this.inputFirstSubKeyPath = el)}
+              disabled={!this.state.isSmartcardConnected}
+            />
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Change KeyPath"
+              ref={el => (this.inputChangeKeyPath2 = el)}
+              disabled={!this.state.isSmartcardConnected}
+            />
+            <div className="input-group-append">
+              <button
+                className="btn btn-primary"
+                onClick={this.onClickGenerateSubWalletTx.bind(this)}
+                disabled={!this.state.isSmartcardConnected}
+              >
+                GenerateSubWalletTX
               </button>
             </div>
           </div>

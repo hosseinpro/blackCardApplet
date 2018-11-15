@@ -19,6 +19,8 @@ public class Server {
     public static void main(String[] args) {
 
         simulator = new CardSimulator();
+        simulator.changeProtocol("T=1");
+        String s = simulator.getProtocol();
         appletAID = AIDUtil.create(blackCardApplet.AID);
         simulator.installApplet(appletAID, blackCardApplet.class);
 
