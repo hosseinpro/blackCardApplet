@@ -265,20 +265,16 @@ class MainPage extends Component {
   onClickGenMasterSeed(e) {
     this.state.blackCard
       .generateMasterSeed()
-      .then(res => {
-        this.outputAddress.value = "";
-      })
+      .then(res => {})
       .catch(err => {
         console.log(err);
       });
   }
 
-  onClickGetAddress(e) {
+  onClickReqRemMasterSeed(e) {
     this.state.blackCard
-      .getAddress()
-      .then(res => {
-        this.outputAddress.value = res.address;
-      })
+      .requestRemoveMasterSeed()
+      .then(res => {})
       .catch(err => {
         console.log(err);
       });
@@ -286,10 +282,8 @@ class MainPage extends Component {
 
   onClickRemMasterSeed(e) {
     this.state.blackCard
-      .removeMasterSeed()
-      .then(res => {
-        this.outputAddress.value = "";
-      })
+      .removeMasterSeed(this.inputYesCodeRemMasterSeed.value)
+      .then(res => {})
       .catch(err => {
         console.log(err);
       });
@@ -315,9 +309,18 @@ class MainPage extends Component {
       });
   }
 
+  onClickRequestExportMasterSeed(e) {
+    this.state.blackCard
+      .requestExportMasterSeed()
+      .then(res => {})
+      .catch(err => {
+        console.log(err);
+      });
+  }
+
   onClickExportMasterSeed(e) {
     this.state.blackCard
-      .exportMasterSeed(this.inputOutputYesCode.value)
+      .exportMasterSeed(this.inputYesCodeExportMasterSeed.value)
       .then(res => {
         this.inputOutputEncryptedMasterSeed.value =
           res.encryptedMasterSeedAndTransportKeyPublic;
@@ -344,68 +347,6 @@ class MainPage extends Component {
         console.log(err);
       });
   }
-
-  // onClickSignTx(e) {
-  // long fund = btc2satoshi(10);//from webservice
-  // long spend = btc2satoshi(1);//from user
-  // int txSize = 226;
-  // int feeRate = 5; // satoshi/byte
-  // long fee = txSize * feeRate;
-  // long change = fund - spend - fee;
-  // String preTxHash = "071188b73ca5dafb1aeb384cb834dfd8bbd56bf0436c4c6b01ed08a852da7e9d";//from webservice
-  // int UTXOindex = 0;//from webservice
-  // String hashSignerPubKey = "7534ed3da28dc41d93903b33c92833fe0c339e9a";//extract from webservice response
-  // String hashSpendPubKey = "3c88aa4c355a9468fa2d35f02fdf6e8cda71e55d";//from user
-  // String hashChangePubKey = hashSignerPubKey;//same as signer until HD
-  // String version = "01000000";
-  // int inputCount = 1;
-  // String[] inputPreTxHash = new String[inputCount];
-  // String[] inputUTXOindex = new String[inputCount];
-  // String[] inputScript = new String[inputCount];
-  // String[] inputSequence = new String[inputCount];
-  // //for inputCount
-  // inputPreTxHash[0] = preTxHash;
-  // inputUTXOindex[0] = String.format("%08X", UTXOindex);
-  // inputScript[0] = "1976a914" + hashSignerPubKey + "88ac";
-  // inputSequence[0] = "ffffffff";
-  // String outputCount = "02";
-  // String spendValue = String.format("%016X", Long.reverseBytes(spend));
-  // String spendScript = "1976a914" + hashSpendPubKey + "88ac";
-  // String changeValue = String.format("%016X", Long.reverseBytes(change));
-  // String changeScript = "1976a914" + hashChangePubKey + "88ac";
-  // String lockTime = "00000000";
-  // String unknown = "01000000";
-  // String toSignTx =
-  //         version +
-  //         String.format("%02X", inputCount);
-  // for(int i=0 ; i<inputCount ; i++)
-  // {
-  //     toSignTx += inputPreTxHash[i] +
-  //             inputUTXOindex[i] +
-  //             inputScript[i] +
-  //             inputSequence[i];
-  // }
-  // toSignTx +=
-  //         outputCount +
-  //         spendValue +
-  //         spendScript +
-  //         changeValue +
-  //         changeScript +
-  //         lockTime +
-  //         unknown;
-  // //txtSignedTX.setText(toSignTx);
-  // //String signedTx = bluecard.signTransaction(toSignTx);
-  // String signedTx = bluecard.test(toSignTx);
-  // txtSignedTX.setText(signedTx);
-  // }
-
-  //   long btc2satoshi(long btc) {
-  //     return btc * 100000000;
-  // }
-
-  // long satoshi2btc(long satoshi){
-  //     return satoshi / 100000000;
-  // }
 
   onClickGetAddressList(e) {
     this.state.blackCard
@@ -463,6 +404,36 @@ class MainPage extends Component {
           ).replace(",{", ",\n{");
         });
     }
+  }
+
+  onClickGetSubWalletAddressList(e) {
+    this.state.blackCard
+      .getSubWalletAddressList(
+        this.inputSubWalletCount.value,
+        this.inputFirstSubWalletNumber1.value
+      )
+      .then(res => {
+        // const keyPathFirst = this.inputKeyPath.value;
+        // const address_index = parseInt(keyPathFirst.substring(10, 14), 16);
+        // const keyPath_no_index = keyPathFirst.substring(0, 10);
+
+        let addressInfo = [];
+        for (let i = 0; i < res.addressList.length; i++) {
+          const address = bs58.encode(Buffer.from(res.addressList[i], "hex"));
+          // const keyPath =
+          //   keyPath_no_index +
+          //   BlackCard.padHex((address_index + i).toString(16), 4);
+          addressInfo[i] = { address /*, keyPath*/ };
+        }
+        this.setState({ addressInfo });
+
+        this.outputAddressInfo.value = JSON.stringify(
+          this.state.addressInfo
+        ).replace(",{", ",\n{");
+      })
+      .catch(err => {
+        console.log(err);
+      });
   }
 
   onClickSetTxInput(e) {
@@ -533,7 +504,24 @@ class MainPage extends Component {
     return { fund, inputSection, signerKeyPaths };
   }
 
+  onClickRequestSignTx(e) {
+    const spend = parseInt(this.inputSpend.value);
+    const fee = parseInt(this.inputFee.value);
+    const destAddress = bs58
+      .decode(this.inputDestAddress.value)
+      .toString("Hex");
+
+    this.state.blackCard
+      .requestSignTx(spend, fee, destAddress)
+      .then(res => {})
+      .catch(err => {
+        console.log(err);
+      });
+  }
+
   onClickSignTx(e) {
+    const yesCode = this.inputYesCodeSignTx.value;
+
     let addressInfo = this.state.addressInfo;
     const spend = parseInt(this.inputSpend.value);
     const fee = parseInt(this.inputFee.value);
@@ -544,18 +532,12 @@ class MainPage extends Component {
       return;
     }
 
-    const destAddress = bs58
-      .decode(this.inputDestAddress.value)
-      .toString("Hex");
-
     const changeKeyPath = this.inputChangeKeyPath.value;
 
     this.state.blackCard
       .signTx(
+        yesCode,
         result.fund,
-        spend,
-        fee,
-        destAddress,
         changeKeyPath,
         result.inputSection,
         result.signerKeyPaths
@@ -563,6 +545,20 @@ class MainPage extends Component {
       .then(res => {
         this.inputOutputSignedTx.value = res.signedTx;
       })
+      .catch(err => {
+        console.log(err);
+      });
+  }
+
+  onClickReqGenerateSubWalletTx(e) {
+    const spend = parseInt(this.inputSpend2.value);
+    const fee = parseInt(this.inputFee2.value);
+    const numOfSub = parseInt(this.inputNumOfSub.value);
+    const firstSubWalletNumber = this.inputFirstSubWalletNumber.value;
+
+    this.state.blackCard
+      .generateSubWalletTx(spend, fee, numOfSub, firstSubWalletNumber)
+      .then(res => {})
       .catch(err => {
         console.log(err);
       });
@@ -579,18 +575,11 @@ class MainPage extends Component {
       return;
     }
 
-    const numOfSub = parseInt(this.inputNumOfSub.value);
-    const firstSubKeyPath = this.inputFirstSubKeyPath.value;
-
     const changeKeyPath = this.inputChangeKeyPath2.value;
 
     this.state.blackCard
       .generateSubWalletTx(
         result.fund,
-        spend,
-        fee,
-        numOfSub,
-        firstSubKeyPath,
         changeKeyPath,
         result.inputSection,
         result.signerKeyPaths
@@ -615,6 +604,27 @@ class MainPage extends Component {
       })
       .catch(error => {
         console.log(error);
+      });
+  }
+
+  onClickReqExportSubWallet(e) {
+    this.state.blackCard
+      .requestExportSubWallet(this.inputSubWalletNumber.value)
+      .then(res => {})
+      .catch(err => {
+        console.log(err);
+      });
+  }
+
+  onClickExportSubWallet(e) {
+    this.state.blackCard
+      .exportSubWallet(this.inputYesCodeExportSubWallet.value)
+      .then(res => {
+        this.inputOutputEncryptedSeedAndTransportKeyPublic.value =
+          res.encryptedSeedAndTransportKeyPublic;
+      })
+      .catch(err => {
+        console.log(err);
       });
   }
 
@@ -789,11 +799,19 @@ class MainPage extends Component {
             <input
               type="text"
               className="form-control"
-              placeholder="Address"
-              ref={el => (this.outputAddress = el)}
+              placeholder="MasterSeed"
+              ref={el => (this.inputOutputMasterSeedPlain = el)}
               disabled={!this.state.isSmartcardConnected}
-              readOnly
             />
+            <div className="input-group-append">
+              <button
+                className="btn btn-primary"
+                onClick={this.onClickImportMasterSeedPlain.bind(this)}
+                disabled={!this.state.isSmartcardConnected}
+              >
+                ImportMasterSeedPlain
+              </button>
+            </div>
             <div className="input-group-append">
               <button
                 className="btn btn-primary"
@@ -802,13 +820,26 @@ class MainPage extends Component {
               >
                 GenMasterSeed
               </button>
+            </div>
+          </div>
+          <div className="row mt-2 input-group">
+            <input
+              type="text"
+              className="form-control"
+              placeholder="yesCode"
+              ref={el => (this.inputYesCodeRemMasterSeed = el)}
+              disabled={!this.state.isSmartcardConnected}
+            />
+            <div className="input-group-append">
               <button
                 className="btn btn-primary"
-                onClick={this.onClickGetAddress.bind(this)}
+                onClick={this.onClickReqRemMasterSeed.bind(this)}
                 disabled={!this.state.isSmartcardConnected}
               >
-                GetAddress
+                ReqRemMasterSeed
               </button>
+            </div>
+            <div className="input-group-append">
               <button
                 className="btn btn-primary"
                 onClick={this.onClickRemMasterSeed.bind(this)}
@@ -847,10 +878,19 @@ class MainPage extends Component {
             <input
               type="text"
               className="form-control"
-              placeholder="Yes code"
-              ref={el => (this.inputOutputYesCode = el)}
+              placeholder="yesCode"
+              ref={el => (this.inputYesCodeExportMasterSeed = el)}
               disabled={!this.state.isSmartcardConnected}
             />
+            <div className="input-group-append">
+              <button
+                className="btn btn-primary"
+                onClick={this.onClickRequestExportMasterSeed.bind(this)}
+                disabled={!this.state.isSmartcardConnected}
+              >
+                ReqExportMasterSeed
+              </button>
+            </div>
             <div className="input-group-append">
               <button
                 className="btn btn-primary"
@@ -876,24 +916,6 @@ class MainPage extends Component {
                 disabled={!this.state.isSmartcardConnected}
               >
                 ImportMasterSeed
-              </button>
-            </div>
-          </div>
-          <div className="row mt-2 input-group">
-            <input
-              type="text"
-              className="form-control"
-              placeholder="MasterSeed"
-              ref={el => (this.inputOutputMasterSeedPlain = el)}
-              disabled={!this.state.isSmartcardConnected}
-            />
-            <div className="input-group-append">
-              <button
-                className="btn btn-primary"
-                onClick={this.onClickImportMasterSeedPlain.bind(this)}
-                disabled={!this.state.isSmartcardConnected}
-              >
-                ImportMasterSeedPlain
               </button>
             </div>
           </div>
@@ -928,6 +950,31 @@ class MainPage extends Component {
                 disabled={!this.state.isSmartcardConnected}
               >
                 GetAddressInfo
+              </button>
+            </div>
+          </div>
+          <div className="row mt-2 input-group">
+            <input
+              type="text"
+              className="form-control"
+              placeholder="First SubWallet Number"
+              ref={el => (this.inputFirstSubWalletNumber1 = el)}
+              disabled={!this.state.isSmartcardConnected}
+            />
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Count"
+              ref={el => (this.inputSubWalletCount = el)}
+              disabled={!this.state.isSmartcardConnected}
+            />
+            <div className="input-group-append">
+              <button
+                className="btn btn-primary"
+                onClick={this.onClickGetSubWalletAddressList.bind(this)}
+                disabled={!this.state.isSmartcardConnected}
+              >
+                GetSubWalletAddressList
               </button>
             </div>
           </div>
@@ -993,6 +1040,24 @@ class MainPage extends Component {
               ref={el => (this.inputDestAddress = el)}
               disabled={!this.state.isSmartcardConnected}
             />
+            <div className="input-group-append">
+              <button
+                className="btn btn-primary"
+                onClick={this.onClickRequestSignTx.bind(this)}
+                disabled={!this.state.isSmartcardConnected}
+              >
+                RequestSignTX
+              </button>
+            </div>
+          </div>
+          <div className="row mt-2 input-group">
+            <input
+              type="text"
+              className="form-control"
+              placeholder="yesCode"
+              ref={el => (this.inputYesCodeSignTx = el)}
+              disabled={!this.state.isSmartcardConnected}
+            />
             <input
               type="text"
               className="form-control"
@@ -1035,8 +1100,26 @@ class MainPage extends Component {
             <input
               type="text"
               className="form-control"
-              placeholder="First Sub KeyPath"
-              ref={el => (this.inputFirstSubKeyPath = el)}
+              placeholder="First SubWallet Number"
+              ref={el => (this.inputFirstSubWalletNumber = el)}
+              disabled={!this.state.isSmartcardConnected}
+            />
+            <div className="input-group-append">
+              <button
+                className="btn btn-primary"
+                onClick={this.onClickReqGenerateSubWalletTx.bind(this)}
+                disabled={!this.state.isSmartcardConnected}
+              >
+                ReqGenerateSubWalletTX
+              </button>
+            </div>
+          </div>
+          <div className="row mt-2 input-group">
+            <input
+              type="text"
+              className="form-control"
+              placeholder="yesCode"
+              ref={el => (this.inputYesCodeGenerateSubWalletTx = el)}
               disabled={!this.state.isSmartcardConnected}
             />
             <input
@@ -1071,6 +1154,51 @@ class MainPage extends Component {
                 disabled={!this.state.isSmartcardConnected}
               >
                 PushTX
+              </button>
+            </div>
+          </div>
+          <div className="row mt-2 input-group">
+            <input
+              type="text"
+              className="form-control"
+              placeholder="SubWallet Number"
+              ref={el => (this.inputSubWalletNumber = el)}
+              disabled={!this.state.isSmartcardConnected}
+            />
+            <div className="input-group-append">
+              <button
+                className="btn btn-primary"
+                onClick={this.onClickReqExportSubWallet.bind(this)}
+                disabled={!this.state.isSmartcardConnected}
+              >
+                ReqExportSubWallet
+              </button>
+            </div>
+          </div>
+          <div className="row mt-2 input-group">
+            <input
+              type="text"
+              className="form-control"
+              placeholder="yesCode"
+              ref={el => (this.inputYesCodeExportSubWallet = el)}
+              disabled={!this.state.isSmartcardConnected}
+            />
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Encrypted Seed And Transport Key Public"
+              ref={el =>
+                (this.inputOutputEncryptedSeedAndTransportKeyPublic = el)
+              }
+              disabled={!this.state.isSmartcardConnected}
+            />
+            <div className="input-group-append">
+              <button
+                className="btn btn-primary"
+                onClick={this.onClickExportSubWallet.bind(this)}
+                disabled={!this.state.isSmartcardConnected}
+              >
+                ExportSubWallet
               </button>
             </div>
           </div>

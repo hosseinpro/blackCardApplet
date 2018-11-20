@@ -71,7 +71,7 @@ class BlackCard {
     //ISO/IEC 7816-4 2005 Section 7.2.3
     //P1-P2: FID (2FE2: EFiccid)
     //Le=00: read entire file
-    const apduGetSerialNumber = "00 B1 2F E2 00";
+    const apduGetSerialNumber = "00 B0 2F E2 00";
     return this.transmit(apduGetSerialNumber, responseAPDU => {
       return { serialNumber: responseAPDU.data };
     });
@@ -81,7 +81,7 @@ class BlackCard {
     //ISO/IEC 7816-4 2005 Section 7.2.3
     //P1-P2: FID
     //Le=00: read entire file
-    const apduGetVersion = "00 B1 BC 01 00";
+    const apduGetVersion = "00 B0 BC 01 00";
     return this.transmit(apduGetVersion, responseAPDU => {
       const splitData = BlackCard.hex2Ascii(responseAPDU.data).split(" ");
       const type = splitData[0];
@@ -94,7 +94,7 @@ class BlackCard {
     //ISO/IEC 7816-4 2005 Section 7.2.3
     //P1-P2: FID
     //Le=00: read entire file
-    const apduGetLabel = "00 B1 BC 02 00";
+    const apduGetLabel = "00 B0 BC 02 00";
     return this.transmit(apduGetLabel, responseAPDU => {
       const label = BlackCard.hex2Ascii(responseAPDU.data);
       return { label };
@@ -110,7 +110,7 @@ class BlackCard {
       (hexLabel.length / 2).toString(16),
       2
     );
-    const apduSetLabel = "00 D1 BC 02" + hexLabelLength + hexLabel;
+    const apduSetLabel = "00 D0 BC 02" + hexLabelLength + hexLabel;
     return this.transmit(apduSetLabel, responseAPDU => {
       return { result: true };
     });
@@ -159,90 +159,49 @@ class BlackCard {
     //ISO/IEC 7816-8 2004 Section 5.1
     //P1=84: key generation with no output
     //P2=01: reference to master seed
-    const apduGenerateMS = "00 46 84 01";
+    const apduGenerateMS = "00 C0 BC 03";
     return this.transmit(apduGenerateMS, responseAPDU => {
       return { result: true };
     });
   }
 
-  getAddress() {
-    //ISO/IEC 7816-4 2005 Section 7.2.3
-    //P1-P2: FID
-    //Le=00: read entire file
-    const apduGetAddress = "00 B1 BC 03 00";
-    return this.transmit(apduGetAddress, responseAPDU => {
-      const address = BlackCard.hex2Ascii(responseAPDU.data);
-      return { address };
-    });
-  }
-
-  removeMasterSeed() {
+  requestRemoveMasterSeed() {
     //ISO/IEC 7816-8 2004 Section 5.1
     //P1=C4: key remove with no output (non-standard)
     //P2=01: reference to master seed
-    const apduRemoveMS = "00 46 C4 01";
+    const apduRequestRemoveMS = "00 E1 BC 03";
+    return this.transmit(apduRequestRemoveMS, responseAPDU => {
+      return { result: true };
+    });
+  }
+
+  removeMasterSeed(yesCode) {
+    //ISO/IEC 7816-8 2004 Section 5.1
+    //P1=C4: key remove with no output (non-standard)
+    //P2=01: reference to master seed
+    const apduRemoveMS = "00 E2 BC 03 04" + BlackCard.ascii2hex(yesCode);
     return this.transmit(apduRemoveMS, responseAPDU => {
       return { result: true };
     });
   }
 
-  //     public String signTransaction(String transaction)
-  //     {
-  //         //ISO/IEC 7816-8 2004 Section 5.2 and 5.4
-  //         //P1=9E: digitla signature
-  //         //P2=9A: plain data to be signed
-  //         int transactionLength = transaction.length() / 2;
-  //         String hexTransactionLength = "";
-  //         if (transactionLength <= 255)
-  //             //short data
-  //             hexTransactionLength = String.format("%02X", transactionLength);
-  //         else
-  //             //extended data
-  //             hexTransactionLength = "00" + String.format("%04X", transactionLength);
-  //         String signTx = "00 2A 9E 9A" + hexTransactionLength + transaction + "49";//max sig len is 73 (0x49)
-  //         String apduResp = transmit(signTx);
-  //         if ((apduResp == null) || (!utils.getSW(apduResp).equals("9000")))
-  //             return null;
-  //         String signature = utils.getData(apduResp);
-  //         return signature;
-  //     }
-
-  generateTransportKey() {
-    //ISO/IEC 7816-8 2004 Section 5.1
-    //P1=84: key generation with no output
-    //P2=00: reference to transport Key
-    //Lc=null and Le=256
-    //just returns modulus, public exponent = 0x10001
-    const apduGenerateTK = "00 46 80 00 00";
-    return this.transmit(apduGenerateTK, responseAPDU => {
-      const transportKeyPublic = responseAPDU.data;
-      return { transportKeyPublic };
-    });
-  }
-
-  importTransportKeyPublic(backupCardTransportKeyPublic) {
-    //ISO/IEC 7816-4 2005 Section 7.2.4
-    //P1-P2: FID
-    //Le=00: write entire file
-    const backupCardTransportKeyPublicLength = BlackCard.padHex(
-      (backupCardTransportKeyPublic.length / 2).toString(16),
-      2
-    );
-    const apduImportTKPub =
-      "00 D1 BC 04 " +
-      backupCardTransportKeyPublicLength +
-      backupCardTransportKeyPublic;
-    return this.transmit(apduImportTKPub, responseAPDU => {
+  requestExportMasterSeed() {
+    //ISO/IEC 7816-8 2004 Section 5.2 and 5.9
+    //P1=86: plain value encryption
+    //P2=80: plain input data (on card)
+    //Lc=len of publicKey and Le=len of encrypted data
+    const apduRequestExportMS = "00 B1 BC 03 00";
+    return this.transmit(apduRequestExportMS, responseAPDU => {
       return { result: true };
     });
   }
 
   exportMasterSeed(yesCode) {
     //ISO/IEC 7816-8 2004 Section 5.2 and 5.9
-    //P1=86: palin value encyption
+    //P1=86: plain value encryption
     //P2=80: plain input data (on card)
     //Lc=len of publicKey and Le=len of encrypted data
-    const apduExportMS = "00 2A 86 80 04" + BlackCard.ascii2hex(yesCode);
+    const apduExportMS = "00 B2 BC 03 04" + BlackCard.ascii2hex(yesCode);
     return this.transmit(apduExportMS, responseAPDU => {
       const encryptedMasterSeedAndTransportKeyPublic = responseAPDU.data;
       return { encryptedMasterSeedAndTransportKeyPublic };
@@ -252,14 +211,14 @@ class BlackCard {
   importMasterSeed(encryptedMasterSeedAndTransportKeyPublic) {
     //ISO/IEC 7816-8 2004 Section 5.2 and 5.10
     //P1=80: plain input data (on card)
-    //P2=86: palin value encyption
+    //P2=86: plain value encryption
     //Lc=len of encrypted data and Le=null
     const encryptedMasterSeedAndTransportKeyPublicLength = BlackCard.padHex(
       (encryptedMasterSeedAndTransportKeyPublic.length / 2).toString(16),
       2
     );
     const apduImportMS =
-      "00 2A 80 86 " +
+      "00 D0 BC 03 " +
       encryptedMasterSeedAndTransportKeyPublicLength +
       encryptedMasterSeedAndTransportKeyPublic;
     return this.transmit(apduImportMS, responseAPDU => {
@@ -276,64 +235,18 @@ class BlackCard {
       (masterSeed.length / 2).toString(16),
       2
     );
-    const apduImportMSPlain = "00 D1 BC 05" + masterSeedLength + masterSeed;
+    const apduImportMSPlain = "00 DD BC 03" + masterSeedLength + masterSeed;
     return this.transmit(apduImportMSPlain, responseAPDU => {
       return { result: true };
     });
   }
 
-  //     public String test(String hexInput)
-  //     {
-  //         String len = String.format("%02X", (hexInput.length() / 2));
-  //         String testCmd = "00 AA 00 00" + len + hexInput;
-  //         String apduResp = transmit(testCmd);
-  //         if ((apduResp == null) || (!utils.getSW(apduResp).equals("9000")))
-  //             return "";
-
-  //         String result = utils.getData(apduResp);
-  //         return result;
-
-  //             /*String testCmd = "00 46 84 01 00";
-  //             String apduResp = transmit(testCmd);
-  //             if (utils.getSW(apduResp) != "9000")
-  //                 return "";
-
-  //             String result = utils.getData(apduResp);
-  //             return result;*/
-  //     }
-
-  //     public String display(String text)
-  //     {
-  //         if(text.length() > 128)
-  //             return null;
-  //         String result = transmit("00 A4 04 00 07 DD 11 22 33 44 55 66 06");
-  //         result = transmit("00 D0 00 00 00");
-
-  //         result = transmit("00 D2 00 00 00");
-
-  //         /*String hexText = utils.unicode2hex(text);
-  //         String hexTextLength = String.format("%04X", (hexText.length() / 2));
-
-  //         String payloadLength = String.format("%02X",8 + (hexText.length() / 2));
-  //         result = transmit("00 D1 00 00 " +
-  //                 payloadLength +
-  //                 "00 " + //Reserved
-  //                 "00 " + //Coding: 00:UFT-8
-  //                 "0000 " + //Start column pixel
-  //                 "0000 " + //Start row pixel
-  //                 hexTextLength +
-  //                 hexText
-  //         );*/
-  //         return result;
-  //     }
-
   getAddressList(keyPath, count) {
     //ISO/IEC 7816-4 2005 Section 7.2.3
     //P1-P2: FID
     //Le=00: read entire file
-
     const countHex = BlackCard.padHex(count.toString(16), 2);
-    const apduGetAddressList = "00 B1 BC 06 08" + keyPath + countHex;
+    const apduGetAddressList = "00 C0 BC 07 08" + keyPath + countHex;
     return this.transmit(apduGetAddressList, responseAPDU => {
       let addressList = [];
       const addressLength = parseInt(responseAPDU.data.substring(0, 2), 16) * 2;
@@ -347,49 +260,55 @@ class BlackCard {
     });
   }
 
-  signTx(
-    fund,
-    spend,
-    fee,
-    destAddress,
-    changeKeyPath,
-    inputSection,
-    signerKeyPaths
-  ) {
+  getSubWalletAddressList(numOfSub, firstSubWalletNumber) {
+    //ISO/IEC 7816-4 2005 Section 7.2.3
+    //P1-P2: FID
+    //Le=00: read entire file
+    const numOfSubHex = BlackCard.padHex(numOfSub.toString(16), 2);
+    const firstSubWalletNumberHex = BlackCard.padHex(
+      firstSubWalletNumber.toString(16),
+      4
+    );
+    const apduGetSubWalletAddressList =
+      "00 C0 BC 08 03" + numOfSubHex + firstSubWalletNumberHex;
+    return this.transmit(apduGetSubWalletAddressList, responseAPDU => {
+      let addressList = [];
+      const addressLength = parseInt(responseAPDU.data.substring(0, 2), 16) * 2;
+      for (let i = 0; i < numOfSub; i++) {
+        addressList[i] = responseAPDU.data.substring(
+          i * addressLength + 2,
+          (i + 1) * addressLength + 2
+        );
+      }
+      return { addressList };
+    });
+  }
+
+  requestGenerateSubWalletTx(spend, fee, numOfSub, firstSubWalletNumber) {
     //ISO/IEC 7816-8 2004 Section 5.2 and 5.4
     //INS=2A
-    //P1=9E: digital signature
+    //P1=9F: 9E is digital signature
     //P2=9A: plain data to be signed
+    //LC=00 XXXX: data length
+    //LE=0000: max response length
 
     let payload =
-      BlackCard.padHex(fund.toString(16), 16) +
       BlackCard.padHex(spend.toString(16), 16) +
       BlackCard.padHex(fee.toString(16), 16) +
-      destAddress +
-      changeKeyPath +
-      inputSection +
-      signerKeyPaths;
+      BlackCard.padHex(numOfSub.toString(16), 2) +
+      BlackCard.padHex(firstSubWalletNumber.toString(16), 4);
 
-    let payloadLength = "";
-    if (payload.length / 2 <= 255) {
-      payloadLength = BlackCard.padHex((payload.length / 2).toString(16), 2);
-    } else {
-      payloadLength =
-        "00" + BlackCard.padHex((payload.length / 2).toString(16), 4);
-    }
-    const apduSignTx = "00 2A 9E 9A " + payloadLength + payload;
-    return this.transmit(apduSignTx, responseAPDU => {
-      const signedTx = responseAPDU.data;
-      return { signedTx };
+    let payloadLength = BlackCard.padHex((payload.length / 2).toString(16), 2);
+    const apduRequestGenerateSubWalletTx =
+      "00 C1 BC 06 " + payloadLength + payload;
+    return this.transmit(apduRequestGenerateSubWalletTx, responseAPDU => {
+      return { result: true };
     });
   }
 
   generateSubWalletTx(
+    yesCode,
     fund,
-    spend,
-    fee,
-    numOfSub,
-    firstSubKeyPath,
     changeKeyPath,
     inputSection,
     signerKeyPaths
@@ -400,20 +319,114 @@ class BlackCard {
     //P2=9A: plain data to be signed
     //LC=00 XXXX: data length
     //LE=0000: max response length
-
     let payload =
+      BlackCard.ascii2hex(yesCode) +
       BlackCard.padHex(fund.toString(16), 16) +
-      BlackCard.padHex(spend.toString(16), 16) +
-      BlackCard.padHex(fee.toString(16), 16) +
-      BlackCard.padHex(numOfSub.toString(16), 2) +
-      firstSubKeyPath +
       changeKeyPath +
       inputSection +
       signerKeyPaths;
 
     let payloadLength =
       "00" + BlackCard.padHex((payload.length / 2).toString(16), 4);
-    const apduSignTx = "00 2A 9F 9A " + payloadLength + payload + "0000";
+    const apduGenerateSubWalletTx =
+      "00 C2 BC 06 " + payloadLength + payload + "0000";
+    return this.transmit(apduGenerateSubWalletTx, responseAPDU => {
+      const signedTx = responseAPDU.data;
+      return { signedTx };
+    });
+  }
+
+  requestExportSubWallet(subWalletNumber) {
+    //ISO/IEC 7816-8 2004 Section 5.2 and 5.9
+    //P1=86: plain value encryption
+    //P2=80: plain input data (on card)
+    //Lc=len of publicKey and Le=len of encrypted data
+    const subWalletNumberHex = BlackCard.padHex(
+      subWalletNumber.toString(16),
+      4
+    );
+    const apduRequestExportSubWallet = "00 B1 BC 06 02" + subWalletNumberHex;
+    return this.transmit(apduRequestExportSubWallet, responseAPDU => {
+      return { result: true };
+    });
+  }
+
+  exportSubWallet(yesCode) {
+    //ISO/IEC 7816-8 2004 Section 5.2 and 5.9
+    //P1=86: plain value encryption
+    //P2=80: plain input data (on card)
+    //Lc=len of publicKey and Le=len of encrypted data
+    const apduExportSubWallet = "00 B2 BC 06 04" + BlackCard.ascii2hex(yesCode);
+    return this.transmit(apduExportSubWallet, responseAPDU => {
+      const encryptedSeedAndTransportKeyPublic = responseAPDU.data;
+      return { encryptedSeedAndTransportKeyPublic };
+    });
+  }
+
+  generateTransportKey() {
+    //ISO/IEC 7816-8 2004 Section 5.1
+    //P1=84: key generation with no output
+    //P2=00: reference to transport Key
+    //Lc=null and Le=256
+    //just returns modulus, public exponent = 0x10001
+    const apduGenerateTK = "00 C0 BC 04 00";
+    return this.transmit(apduGenerateTK, responseAPDU => {
+      const transportKeyPublic = responseAPDU.data;
+      return { transportKeyPublic };
+    });
+  }
+
+  importTransportKeyPublic(backupCardTransportKeyPublic) {
+    //ISO/IEC 7816-4 2005 Section 7.2.4
+    //P1-P2: FID
+    //Le=00: write entire file
+    const backupCardTransportKeyPublicLength = BlackCard.padHex(
+      (backupCardTransportKeyPublic.length / 2).toString(16),
+      2
+    );
+    const apduImportTKPub =
+      "00 D0 BC 05 " +
+      backupCardTransportKeyPublicLength +
+      backupCardTransportKeyPublic;
+    return this.transmit(apduImportTKPub, responseAPDU => {
+      return { result: true };
+    });
+  }
+
+  requestSignTx(spend, fee, destAddress) {
+    //ISO/IEC 7816-8 2004 Section 5.2 and 5.4
+    //INS=2A
+    //P1=9E: digital signature
+    //P2=9A: plain data to be signed
+
+    let payload =
+      BlackCard.padHex(spend.toString(16), 16) +
+      BlackCard.padHex(fee.toString(16), 16) +
+      destAddress;
+
+    let payloadLength = BlackCard.padHex((payload.length / 2).toString(16), 2);
+    const apduRequestSignTx = "00 31 00 01 " + payloadLength + payload;
+    return this.transmit(apduRequestSignTx, responseAPDU => {
+      return { result: true };
+    });
+  }
+
+  signTx(yesCode, fund, changeKeyPath, inputSection, signerKeyPaths) {
+    //ISO/IEC 7816-8 2004 Section 5.2 and 5.4
+    //INS=2A
+    //P1=9E: digital signature
+    //P2=9A: plain data to be signed
+
+    let payload =
+      BlackCard.ascii2hex(yesCode) +
+      BlackCard.padHex(fund.toString(16), 16) +
+      changeKeyPath +
+      inputSection +
+      signerKeyPaths;
+
+    let payloadLength =
+      "00" + BlackCard.padHex((payload.length / 2).toString(16), 4);
+    const apduSignTx = "00 32 00 01 " + payloadLength + payload + "0000";
     return this.transmit(apduSignTx, responseAPDU => {
       const signedTx = responseAPDU.data;
       return { signedTx };

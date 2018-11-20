@@ -6,6 +6,8 @@ import javacard.security.*;
 class BIP {
 
     private static final byte BITCOIN_SEED[] = { 'B', 'i', 't', 'c', 'o', 'i', 'n', ' ', 's', 'e', 'e', 'd' };
+    private static final byte SUBWALLET_SEED[] = { 'S', 'u', 'b', 'w', 'a', 'l', 'l', 'e', 't', ' ', '0', '0', '0',
+            '0' };
 
     public static final short BTC = 0;
     public static final short TST = 1;
@@ -17,6 +19,7 @@ class BIP {
     private Signature hmacSignature;
     private HMACKey hmacMasterKey;
     private HMACKey hmacDerivedKey;
+    private HMACKey hmacSubWallet;
     private KeyAgreement ecMultiplyHelper;
     private ECPrivateKey ecPrivateKeyTemp;
 
@@ -26,6 +29,8 @@ class BIP {
         hmacMasterKey = (HMACKey) KeyBuilder.buildKey(KeyBuilder.TYPE_HMAC, KeyBuilder.LENGTH_HMAC_SHA_512_BLOCK_128,
                 false);
         hmacDerivedKey = (HMACKey) KeyBuilder.buildKey(KeyBuilder.TYPE_HMAC, KeyBuilder.LENGTH_HMAC_SHA_512_BLOCK_128,
+                false);
+        hmacSubWallet = (HMACKey) KeyBuilder.buildKey(KeyBuilder.TYPE_HMAC, KeyBuilder.LENGTH_HMAC_SHA_512_BLOCK_128,
                 false);
         ecMultiplyHelper = KeyAgreement.getInstance(ALG_EC_SVDP_DH_PLAIN_XY, false);
         ecPrivateKeyTemp = (ECPrivateKey) KeyBuilder.buildKey(KeyBuilder.TYPE_EC_FP_PRIVATE,
@@ -107,7 +112,7 @@ class BIP {
         hmacSignature.sign(seed, seedOffset, seedLength, kcPar, kcParOffset);
         // if iL=0 or >=n => invalid
         if ((kcPar[kcParOffset] == (byte) 0)
-                || MathMod256.ucmp(kcPar, kcParOffset, Secp256k1.SECP256K1_R, (short) 0) >= (short) 0) {
+                || MathMod256.ucmp(kcPar, kcParOffset, Secp256k1.SECP256K1_R, (short) 0, (short) 32) >= (short) 0) {
             return false;
         }
         return true;
@@ -158,7 +163,7 @@ class BIP {
         hmacSignature.sign(scratch104, (short) (scratchOffset + 0), (short) 37, scratch104, iL_index);
 
         // if iL>=n => invalid
-        if (MathMod256.ucmp(scratch104, iL_index, Secp256k1.SECP256K1_R, (short) 0) >= (short) 0) {
+        if (MathMod256.ucmp(scratch104, iL_index, Secp256k1.SECP256K1_R, (short) 0, (short) 32) >= (short) 0) {
             return false;
         }
 
@@ -243,5 +248,27 @@ class BIP {
             // }
         }
         return resultLen;
+    }
+
+    private void decToHexString4(short decimal, byte[] hexString, short hexStringOffset) {
+        short t = decimal;
+        for (short i = 0; i < 4; i++) {
+            hexString[hexStringOffset + i] = (byte) ((t % 10) + 0x30);
+            t = (short) (t / 10);
+        }
+    }
+
+    public short generateSubwalletSeed(byte[] masterSeed, short masterSeedOffset, short masterSeedLength,
+            short subwalletNumber, byte[] subwalletSeed, short subwalletSeedOffset, byte[] scratch14,
+            short scratchOffset) {
+        // HMAC-SHA512(key="Subwallet XXXX", data=mseed) => subwalletSeed
+        Util.arrayCopyNonAtomic(SUBWALLET_SEED, (short) 0, scratch14, scratchOffset, (short) SUBWALLET_SEED.length);
+        decToHexString4(subwalletNumber, scratch14, (short) (scratchOffset + 10));
+
+        hmacSubWallet.setKey(scratch14, scratchOffset, (short) SUBWALLET_SEED.length);
+        hmacSignature.init(hmacSubWallet, Signature.MODE_SIGN);
+        short subwalletSeedLength = hmacSignature.sign(masterSeed, masterSeedOffset, masterSeedLength, subwalletSeed,
+                subwalletSeedOffset);
+        return subwalletSeedLength;
     }
 }
