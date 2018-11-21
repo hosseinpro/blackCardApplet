@@ -885,6 +885,95 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         return (short) (beNumberOffset + length);
     }
 
+    private short signTransaction(byte[] inputSection, short inputSectionOffset, byte[] signerKeyPaths,
+            short signerKeyPathsOffset, byte[] outputSection, short outputSectionOffset, short outputSectionLength,
+            byte[] signedTx, short signedTxOffset, byte[] scratch322, short scratchOffset) {
+        // version 01000000
+        short signedTxIndex = signedTxOffset;
+        short headerIndex = signedTxIndex;
+        signedTx[signedTxIndex++] = 0x01;
+        signedTx[signedTxIndex++] = 0x00;
+        signedTx[signedTxIndex++] = 0x00;
+        signedTx[signedTxIndex++] = 0x00;
+        // inputs
+        signedTx[signedTxIndex++] = inputSection[inputSectionOffset]; // input count
+
+        // output and footer
+        short footerIndex = (short) (signedTx.length - (outputSectionLength + 8));
+        signedTxIndex = Util.arrayCopyNonAtomic(outputSection, outputSectionOffset, signedTx, footerIndex,
+                outputSectionLength);
+        // locktime 00000000
+        signedTx[signedTxIndex++] = 0x00;
+        signedTx[signedTxIndex++] = 0x00;
+        signedTx[signedTxIndex++] = 0x00;
+        signedTx[signedTxIndex++] = 0x00;
+        // hashtype 01000000
+        signedTx[signedTxIndex++] = 0x01;
+        signedTx[signedTxIndex++] = 0x00;
+        signedTx[signedTxIndex++] = 0x00;
+        signedTx[signedTxIndex++] = 0x00;
+
+        short offset = scratchOffset;
+
+        signedTxIndex = (short) (headerIndex + 5);// begin of outputs
+        // for (...)
+        // 32B hash + 4B UTXO
+        signedTxIndex = Util.arrayCopyNonAtomic(inputSection, (short) (inputSectionOffset + 1), signedTx, signedTxIndex,
+                (short) 36);
+
+        sha256.reset();
+        sha256.update(signedTx, headerIndex, (short) 5);// header
+        sha256.update(inputSection, (short) (inputSectionOffset + 1), (short) 66);// inputs
+        sha256.doFinal(signedTx, footerIndex, (short) (outputSectionLength + 8), scratch322, offset);// footer
+        // hold tx hash in scratch 0..31
+
+        bip.bip44DerivePath(mseed, (short) 0, MSEED_SIZE, signerKeyPaths, signerKeyPathsOffset, scratch322,
+                (short) (offset + 32), (short) 1, scratch322, (short) (offset + 64), scratch322, (short) (offset + 90));
+        // hold prikey in scratch 32..63 [32]
+
+        Secp256k1.setCommonCurveParameters(signKey);
+        signKey.setS(scratch322, (short) (offset + 32), (short) 32);
+        signature.init(signKey, Signature.MODE_SIGN);
+        short scriptLenIndex = signedTxIndex;
+        signedTxIndex++;// 1B script Len
+        short signatureLen = 0;
+        short sIndex = 0;
+        do {
+            signatureLen = signature.sign(scratch322, (short) (offset), (short) 32, scratch322, (short) (offset + 64));
+            // 30 45 02 20 XXXX 02 20 XXXX
+            sIndex = (short) (offset + 64 + 4 - 1);
+            sIndex += scratch322[sIndex];
+            sIndex += 3;
+            if (scratch322[sIndex] == 0x00) {
+                sIndex++;
+            }
+            // if s > N/2
+        } while (MathMod256.ucmp(scratch322, sIndex, Secp256k1.SECP256K1_Rdiv2, (short) 0,
+                (short) Secp256k1.SECP256K1_Rdiv2.length) > 0);
+
+        Util.arrayCopyNonAtomic(scratch322, (short) (offset + 64), signedTx, (short) (signedTxIndex + 1), signatureLen);
+
+        signedTx[signedTxIndex] = (byte) (signatureLen + 1);// sig len + 1
+        signedTxIndex += signatureLen + 1;
+        signedTx[signedTxIndex++] = 0x01;// hash type
+        short pubKeyLen = bip.ec256PrivateKeyToPublicKey(scratch322, (short) (offset + 32), signedTx,
+                (short) (signedTxIndex + 1), true);
+        signedTx[signedTxIndex++] = (byte) pubKeyLen;
+        signedTxIndex += pubKeyLen;
+        // x = 1B [sig len byte] + sigLen + 1B [hash type] + 1B [pubkey Len] + pubKeyLen
+        signedTx[scriptLenIndex] = (byte) (3 + signatureLen + pubKeyLen);
+        // 63 = 1B len + 32B hash + 4B UTXO + 26B script
+        signedTxIndex = Util.arrayCopyNonAtomic(inputSection, (short) (inputSectionOffset + 63), signedTx,
+                signedTxIndex, (short) 4);// sequence
+        // end for
+
+        signedTxIndex = Util.arrayCopyNonAtomic(signedTx, footerIndex, signedTx, signedTxIndex,
+                (short) (outputSectionLength + 4));
+
+        short signedTxLength = (short) (signedTxIndex - outputSectionOffset - outputSectionLength - 1);
+        return signedTxLength;
+    }
+
     private void processRequestSignTransaction(APDU apdu) {
         if (pin.isValidated() == false) {
             ISOException.throwIt(ISO7816.SW_SECURITY_STATUS_NOT_SATISFIED);
@@ -924,18 +1013,8 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         short inputCount = buf[inputSectionIndex];
         short signerKeyPathsIndex = (short) (inputSectionIndex + 1 + (short) (inputCount * 66)); // n*7B
 
+        // build output section
         short moffset = 0;
-        // version 01000000
-        main500[moffset++] = 0x01;
-        main500[moffset++] = 0x00;
-        main500[moffset++] = 0x00;
-        main500[moffset++] = 0x00;
-        // inputs
-        main500[moffset++] = buf[inputSectionIndex]; // input count
-        // fill after sign
-        // output count
-        short outputIndex = (short) ((short) main500.length - 77);// Output length
-        moffset = outputIndex;
         main500[moffset++] = 0x02;
         // spend value (big endian)
         moffset = toBigEndian(commandBuffer80, spendIndex, main500, moffset, (short) 8);
@@ -952,72 +1031,14 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         // addressList: 1B len + 25B address
         Util.arrayCopyNonAtomic(scratch515, (short) (32 + 1 + 1), P2PKH, (short) 4, (short) 20);
         moffset = Util.arrayCopyNonAtomic(P2PKH, (short) 0, main500, moffset, (short) (P2PKH.length));
-        // locktime 00000000
-        main500[moffset++] = 0x00;
-        main500[moffset++] = 0x00;
-        main500[moffset++] = 0x00;
-        main500[moffset++] = 0x00;
-        // hashtype 01000000
-        main500[moffset++] = 0x01;
-        main500[moffset++] = 0x00;
-        main500[moffset++] = 0x00;
-        main500[moffset++] = 0x00;
 
-        moffset = 5;// begin of outputs
-        // for (...)
-        // 32B hash + 4B UTXO
-        moffset = Util.arrayCopyNonAtomic(buf, (short) (inputSectionIndex + 1), main500, moffset, (short) 36);
-
-        sha256.reset();
-        sha256.update(main500, (short) 0, (short) 4);
-        sha256.update(buf, inputSectionIndex, (short) (1 + 66));
-        sha256.doFinal(main500, outputIndex, (short) (77), scratch515, (short) 0);
-        // hold tx hash in scratch 0..31
-
-        bip.bip44DerivePath(mseed, (short) 0, MSEED_SIZE, buf, signerKeyPathsIndex, scratch515, (short) 32, (short) 1,
-                scratch515, (short) 64, scratch515, (short) 90);// hold prikey in scratch 32..63 [32]
-
-        Secp256k1.setCommonCurveParameters(signKey);
-        signKey.setS(scratch515, (short) 32, (short) 32);
-        signature.init(signKey, Signature.MODE_SIGN);
-        short scriptLenIndex = moffset;
-        moffset++;// 1B script Len
-        // short signatureLen = signature.sign(scratch515, (short) 0, (short) 32,
-        // main500, (short) (moffset + 1));
-        short signatureLen = 0;
-        short sIndex = 0;
-        do {
-            signatureLen = signature.sign(scratch515, (short) 0, (short) 32, scratch515, (short) 64);
-            // 30 45 02 20 XXXX 02 20 XXXX
-            sIndex = (short) (64 + 4 - 1);
-            sIndex += scratch515[sIndex];
-            sIndex += 3;
-            if (scratch515[sIndex] == 0x00) {
-                sIndex++;
-            }
-            // if s > N/2
-        } while (MathMod256.ucmp(scratch515, sIndex, Secp256k1.SECP256K1_Rdiv2, (short) 0,
-                (short) Secp256k1.SECP256K1_Rdiv2.length) > 0);
-
-        Util.arrayCopyNonAtomic(scratch515, (short) 64, main500, (short) (moffset + 1), signatureLen);
-
-        main500[moffset] = (byte) (signatureLen + 1);// sig len + 1
-        moffset += signatureLen + 1;
-        main500[moffset++] = 0x01;// hash type
-        short pubKeyLen = bip.ec256PrivateKeyToPublicKey(scratch515, (short) 32, main500, (short) (moffset + 1), true);
-        main500[moffset++] = (byte) pubKeyLen;
-        moffset += pubKeyLen;
-        // x = 1B [sig len byte] + sigLen + 1B [hash type] + 1B [pubkey Len] + pubKeyLen
-        main500[scriptLenIndex] = (byte) (3 + signatureLen + pubKeyLen);
-        // 63 = 1B len + 32B hash + 4B UTXO + 26B script
-        moffset = Util.arrayCopyNonAtomic(buf, (short) (inputSectionIndex + 63), main500, moffset, (short) 4);// sequence
-        // end for
-
-        moffset = Util.arrayCopyNonAtomic(main500, outputIndex, main500, moffset, (short) 73);
+        // build final Tx
+        short signedTxLength = signTransaction(buf, inputSectionIndex, buf, signerKeyPathsIndex, main500, (short) 0,
+                (short) 69, main500, (short) 70, scratch515, (short) 0);
 
         apdu.setOutgoing();
-        apdu.setOutgoingLength(moffset);
-        apdu.sendBytesLong(main500, (short) 0, moffset);
+        apdu.setOutgoingLength(signedTxLength);
+        apdu.sendBytesLong(main500, (short) 70, signedTxLength);
     }
 
     private short generateKCV(byte[] inBubber, short inOffset, short inLength, byte[] outBuffer, short outOffset) {
