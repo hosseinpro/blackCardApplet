@@ -60,16 +60,16 @@ class MathMod256 {
         short ci = 0;
         for (short i = 0; i < length; i++) {
             t = (short) (r << 4);
-            t = (short) (t | (short) ((short) (a[i + a_off] & 0xF0) >> 4));
+            t = (short) (t | (short) ((short) (a[(short) (i + a_off)] & 0xF0) >> 4));
             r = (short) (t % b);
             ci = (short) ((short) (t / b) << 4);
 
             t = (short) (r << 4);
-            t = (short) (t | (short) (a[i + a_off] & 0x0F));
+            t = (short) (t | (short) (a[(short) (i + a_off)] & 0x0F));
             r = (short) (t % b);
             ci = (short) (ci | (t / b));
 
-            c[i + c_off] = (byte) ci;
+            c[(short) (i + c_off)] = (byte) ci;
         }
     }
 

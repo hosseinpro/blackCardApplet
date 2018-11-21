@@ -557,7 +557,7 @@ class MainPage extends Component {
     const firstSubWalletNumber = this.inputFirstSubWalletNumber.value;
 
     this.state.blackCard
-      .generateSubWalletTx(spend, fee, numOfSub, firstSubWalletNumber)
+      .requestGenerateSubWalletTx(spend, fee, numOfSub, firstSubWalletNumber)
       .then(res => {})
       .catch(err => {
         console.log(err);
@@ -565,6 +565,8 @@ class MainPage extends Component {
   }
 
   onClickGenerateSubWalletTx(e) {
+    const yesCode = this.inputYesCodeGenerateSubWalletTx.value;
+
     let addressInfo = this.state.addressInfo;
     const spend = parseInt(this.inputSpend2.value);
     const fee = parseInt(this.inputFee2.value);
@@ -579,6 +581,7 @@ class MainPage extends Component {
 
     this.state.blackCard
       .generateSubWalletTx(
+        yesCode,
         result.fund,
         changeKeyPath,
         result.inputSection,

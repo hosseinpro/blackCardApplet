@@ -126,7 +126,7 @@ class BIP {
         short publicKeyLength = ecMultiplyHelper.generateSecret(Secp256k1.SECP256K1_G, (short) 0, (short) 65,
                 publicKey65, publicKeyOffset);
         if (compressed) {
-            if ((publicKey65[publicKeyOffset + publicKeyLength - 1] & 0x01) == 0x01) {// Y last digit is odd
+            if ((publicKey65[(short) (publicKeyOffset + publicKeyLength - 1)] & 0x01) == 0x01) {// Y last digit is odd
                 publicKey65[publicKeyOffset] = 0x03;
             } else {// Y last digit is even
                 publicKey65[publicKeyOffset] = 0x02;
@@ -144,15 +144,15 @@ class BIP {
             scratch104[scratchOffset] = (byte) 0x00;
             Util.arrayCopyNonAtomic(kcPar64, kcParOffset, scratch104, (short) (scratchOffset + 1), (short) 32);
             // Util.arrayCopyNonAtomic(i, iOffset, scratchBuffer, (short) 33, (short) 4);
-            scratch104[scratchOffset + 33] = (byte) 0x80;// i = i + 2^31
-            scratch104[scratchOffset + 34] = (byte) 0x00;
+            scratch104[(short) (scratchOffset + 33)] = (byte) 0x80;// i = i + 2^31
+            scratch104[(short) (scratchOffset + 34)] = (byte) 0x00;
             Util.setShort(scratch104, (short) (scratchOffset + 35), i);
         } else {// normal key
             // pointX(kPar)|i : [37B]
             ec256PrivateKeyToPublicKey(kcPar64, kcParOffset, scratch104, scratchOffset, true);
             // Util.arrayCopyNonAtomic(i, iOffset, scratchBuffer, (short) 65, (short) 4);
-            scratch104[scratchOffset + 33] = (byte) 0x00;
-            scratch104[scratchOffset + 34] = (byte) 0x00;
+            scratch104[(short) (scratchOffset + 33)] = (byte) 0x00;
+            scratch104[(short) (scratchOffset + 34)] = (byte) 0x00;
             Util.setShort(scratch104, (short) (scratchOffset + 35), i);
         }
 
@@ -185,39 +185,40 @@ class BIP {
             short addressOffset, byte[] scratch232, short scratchOffset) {
 
         // m[1]/44'[1]/coin'[1]/account'[1]/change[1]/address_index[2]
-        short coin = keyPath[keyPathOffset + 2];
+        short coin = keyPath[(short) (keyPathOffset + 2)];
 
         // m
-        if ((keyPath[keyPathOffset + 0] != 'm')
+        if ((keyPath[(short) (keyPathOffset + 0)] != 'm')
                 || !bip32GenerateMasterKey(masterSeed, masterSeedOffset, masterSeedLength, scratch232, scratchOffset)) {
             return 0;
         }
         // purpose'
-        if ((keyPath[keyPathOffset + 1] != 44)
-                || !bip32DerivePrivateKey(scratch232, scratchOffset, keyPath[keyPathOffset + 1], true, scratch232,
-                        scratchOffset, scratch232, (short) (scratchOffset + 64))) {
+        if ((keyPath[(short) (keyPathOffset + 1)] != 44)
+                || !bip32DerivePrivateKey(scratch232, scratchOffset, keyPath[(short) (keyPathOffset + 1)], true,
+                        scratch232, scratchOffset, scratch232, (short) (scratchOffset + 64))) {
             return 0;
         }
         // coin'
-        if (!bip32DerivePrivateKey(scratch232, scratchOffset, keyPath[keyPathOffset + 2], true, scratch232,
+        if (!bip32DerivePrivateKey(scratch232, scratchOffset, keyPath[(short) (keyPathOffset + 2)], true, scratch232,
                 scratchOffset, scratch232, (short) (scratchOffset + 64))) {
             return 0;
         }
         // account'
-        if ((keyPath[keyPathOffset + 3] > 255)
-                || !bip32DerivePrivateKey(scratch232, scratchOffset, keyPath[keyPathOffset + 3], true, scratch232,
-                        scratchOffset, scratch232, (short) (scratchOffset + 64))) {
+        if ((keyPath[(short) (keyPathOffset + 3)] > 255)
+                || !bip32DerivePrivateKey(scratch232, scratchOffset, keyPath[(short) (keyPathOffset + 3)], true,
+                        scratch232, scratchOffset, scratch232, (short) (scratchOffset + 64))) {
             return 0;
         }
         // change
-        if ((keyPath[keyPathOffset + 4] > 2)
-                || !bip32DerivePrivateKey(scratch232, scratchOffset, keyPath[keyPathOffset + 4], false, scratch232,
-                        scratchOffset, scratch232, (short) (scratchOffset + 64))) {
+        if ((keyPath[(short) (keyPathOffset + 4)] > 2)
+                || !bip32DerivePrivateKey(scratch232, scratchOffset, keyPath[(short) (keyPathOffset + 4)], false,
+                        scratch232, scratchOffset, scratch232, (short) (scratchOffset + 64))) {
             return 0;
         }
         // address_index
-        short address_index = Util.makeShort(keyPath[keyPathOffset + 5], keyPath[keyPathOffset + 6]);
-        if ((addressCount < 1) || (addressCount > 99) || (address_index + addressCount > 65535)) {
+        short address_index = Util.makeShort(keyPath[(short) (keyPathOffset + 5)],
+                keyPath[(short) (keyPathOffset + 6)]);
+        if ((addressCount < 1) || (addressCount > 99) || ((short) (address_index + addressCount) > (short) (65535))) {
             return 0;
         }
         short publicKeyLen = 0;
@@ -253,7 +254,7 @@ class BIP {
     private void decToHexString4(short decimal, byte[] hexString, short hexStringOffset) {
         short t = decimal;
         for (short i = 0; i < 4; i++) {
-            hexString[hexStringOffset + i] = (byte) ((t % 10) + 0x30);
+            hexString[(short) (hexStringOffset + i)] = (byte) ((t % 10) + 0x30);
             t = (short) (t / 10);
         }
     }
