@@ -210,7 +210,7 @@ class BIP {
             return 0;
         }
         // change
-        if ((keyPath[(short) (keyPathOffset + 4)] > 2)
+        if ((keyPath[(short) (keyPathOffset + 4)] > 1)
                 || !bip32DerivePrivateKey(scratch232, scratchOffset, keyPath[(short) (keyPathOffset + 4)], false,
                         scratch232, scratchOffset, scratch232, (short) (scratchOffset + 64))) {
             return 0;
@@ -236,17 +236,12 @@ class BIP {
             }
             Util.arrayCopyNonAtomic(scratch232, (short) (scratchOffset + 64), privateKey32, privateKeyOffset,
                     (short) 32);
-            // ec256PrivateKeyToPublicKey(privateKey32, privateKeyOffset, publicKeys,
-            // (short) (publicKeysOffset + (short) (i * 65)), false);
-            // resultLen += 65;
-            // if (addressList != null) {
             publicKeyLen = ec256PrivateKeyToPublicKey(privateKey32, privateKeyOffset, scratch232,
                     (short) (scratchOffset + 64), true);
             addressLen = publicKeyToAddress(coin, scratch232, (short) (scratchOffset + 64), publicKeyLen, addressList,
                     (short) (addressOffset + resultLen), false, scratch232, (short) (scratchOffset + 100));
 
             resultLen += addressLen;
-            // }
         }
         return resultLen;
     }
