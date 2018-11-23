@@ -218,7 +218,7 @@ class BIP {
         // address_index
         short address_index = Util.makeShort(keyPath[(short) (keyPathOffset + 5)],
                 keyPath[(short) (keyPathOffset + 6)]);
-        if ((addressCount < 1) || (addressCount > 99) || ((short) (address_index + addressCount) > (short) (65535))) {
+        if ((addressCount < 1) || (addressCount > 99) || ((short) (address_index + addressCount) > (short) (32000))) {
             return 0;
         }
         short publicKeyLen = 0;

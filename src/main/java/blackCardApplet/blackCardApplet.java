@@ -37,7 +37,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
     private static final byte defaultPIN[] = { '1', '2', '3', '4' };
     private byte P2PKH[] = { 0x19, 0x76, (byte) 0xa9, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, (byte) 0x88, (byte) 0xac };
-    private static final byte subwalletPath[] = { 'm', 44, 0, 0, 1, 0, 0 };
+    private static final byte subwalletPath[] = { 'm', 44, 0, 0, 1, 0, 0 }; // m'/44'/0'(BTC)/0'/1(internal)/0
 
     private static byte[] mseed = new byte[64];
     private static boolean mseedInitialized;
@@ -85,10 +85,8 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
 
         tempSerialNumber = JCSystem.makeTransientByteArray(SERIALNUMBER_SIZE, JCSystem.CLEAR_ON_DESELECT);
 
-        // mseed = new byte[64];
         mseedInitialized = false;
         signKey = (ECPrivateKey) KeyBuilder.buildKey(KeyBuilder.TYPE_EC_FP_PRIVATE, KeyBuilder.LENGTH_EC_FP_256, false);
-        // new KeyPair(KeyPair.ALG_EC_FP, KeyBuilder.LENGTH_EC_FP_256);
 
         transportKey = new KeyPair(KeyPair.ALG_EC_FP, KeyBuilder.LENGTH_EC_FP_256);
 
@@ -118,7 +116,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         byte p2 = buf[OFFSET_P2];
 
         if (cla != (byte) 0x00) {
-            ISOException.throwIt(ISO7816.SW_CLA_NOT_SUPPORTED);
+            ISOException.throwIt(SW_CLA_NOT_SUPPORTED);
         }
 
         try {
@@ -154,7 +152,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
                 commandLock = CL_REMOVE_MSEED;
             } else if ((ins == (byte) 0xE2) && (p1 == (byte) 0xBC) && (p2 == (byte) 0x03)) {
                 if (commandLock != CL_REMOVE_MSEED) {
-                    ISOException.throwIt(ISO7816.SW_COMMAND_NOT_ALLOWED);
+                    ISOException.throwIt(SW_COMMAND_NOT_ALLOWED);
                 }
                 processRemoveMasterSeed(apdu);
                 commandLock = CL_NONE;
@@ -163,7 +161,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
                 commandLock = CL_EXPORT_MSEED;
             } else if ((ins == (byte) 0xB2) && (p1 == (byte) 0xBC) && (p2 == (byte) 0x03)) {
                 if (commandLock != CL_EXPORT_MSEED) {
-                    ISOException.throwIt(ISO7816.SW_COMMAND_NOT_ALLOWED);
+                    ISOException.throwIt(SW_COMMAND_NOT_ALLOWED);
                 }
                 processExportMasterSeed(apdu);
                 commandLock = CL_NONE;
@@ -184,7 +182,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
                 commandLock = CL_GENERATE_SUBWALLET;
             } else if ((ins == (byte) 0xC2) && (p1 == (byte) 0xBC) && (p2 == (byte) 0x06)) {
                 if (commandLock != CL_GENERATE_SUBWALLET) {
-                    ISOException.throwIt(ISO7816.SW_COMMAND_NOT_ALLOWED);
+                    ISOException.throwIt(SW_COMMAND_NOT_ALLOWED);
                 }
                 processGenerateSubWallet(apdu);
                 commandLock = CL_NONE;
@@ -193,7 +191,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
                 commandLock = CL_EXPORT_SUBWALLET;
             } else if ((ins == (byte) 0xB2) && (p1 == (byte) 0xBC) && (p2 == (byte) 0x06)) {
                 if (commandLock != CL_EXPORT_SUBWALLET) {
-                    ISOException.throwIt(ISO7816.SW_COMMAND_NOT_ALLOWED);
+                    ISOException.throwIt(SW_COMMAND_NOT_ALLOWED);
                 }
                 processExportSubWallet(apdu);
                 commandLock = CL_NONE;
@@ -208,17 +206,17 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
                 commandLock = CL_SIGN_TX;
             } else if ((ins == (byte) 0x32) && (p1 == (byte) 0x00) && (p2 == (byte) 0x01)) {
                 if (commandLock != CL_SIGN_TX) {
-                    ISOException.throwIt(ISO7816.SW_COMMAND_NOT_ALLOWED);
+                    ISOException.throwIt(SW_COMMAND_NOT_ALLOWED);
                 }
                 processSignTransaction(apdu);
                 commandLock = CL_NONE;
             } else if (ins == (byte) 0xAA) {
                 test(apdu);
             } else {
-                ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);
+                ISOException.throwIt(SW_INS_NOT_SUPPORTED);
             }
         } catch (SystemException e) {
-            ISOException.throwIt(ISO7816.SW_UNKNOWN);
+            ISOException.throwIt(SW_UNKNOWN);
         }
     }
 
@@ -227,13 +225,17 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         byte[] buf = apdu.getBuffer();
         short lc = apdu.getIncomingLength();
 
-        apdu.sendBytesLong(main500, (short) 0, (short) 500);
+        short offset = Util.makeShort(buf[OFFSET_CDATA], buf[(short) (OFFSET_CDATA + 1)]);
+
+        apdu.setOutgoing();
+        apdu.setOutgoingLength((short) 200);
+        apdu.sendBytesLong(main500, offset, (short) 200);
     }
 
     private void processGetSerialNumber(APDU apdu) {
         if (tempSerialNumber[0] == (byte) 0x00) {
             if (serialNumber == null) {
-                ISOException.throwIt(ISO7816.SW_COMMAND_NOT_ALLOWED);
+                ISOException.throwIt(SW_COMMAND_NOT_ALLOWED);
             }
 
             Util.arrayCopyNonAtomic(serialNumber, (short) 0, tempSerialNumber, (short) 0, SERIALNUMBER_SIZE);
@@ -259,7 +261,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
 
     private void processSetLabel(APDU apdu) {
         if (pin.isValidated() == false) {
-            ISOException.throwIt(ISO7816.SW_SECURITY_STATUS_NOT_SATISFIED);
+            ISOException.throwIt(SW_SECURITY_STATUS_NOT_SATISFIED);
         }
 
         apdu.setIncomingAndReceive();
@@ -267,7 +269,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         short lc = apdu.getIncomingLength();
 
         if (lc > LABEL_SIZE_MAX) {
-            ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
+            ISOException.throwIt(SW_CONDITIONS_NOT_SATISFIED);
         }
 
         labelLength = Util.arrayCopyNonAtomic(buf, OFFSET_CDATA, label, (short) 0, lc);
@@ -278,7 +280,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         byte[] buf = apdu.getBuffer();
         short lc = apdu.getIncomingLength();
         if (lc != PIN_SIZE) {
-            ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
+            ISOException.throwIt(SW_WRONG_LENGTH);
         }
 
         if (pin.check(buf, OFFSET_CDATA, PIN_SIZE) == false) {
@@ -288,14 +290,14 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
 
     private void processChangePIN(APDU apdu) {
         if (pin.isValidated() == false) {
-            ISOException.throwIt(ISO7816.SW_SECURITY_STATUS_NOT_SATISFIED);
+            ISOException.throwIt(SW_SECURITY_STATUS_NOT_SATISFIED);
         }
 
         apdu.setIncomingAndReceive();
         byte[] buf = apdu.getBuffer();
         short lc = apdu.getIncomingLength();
         if (lc != PIN_SIZE) {
-            ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
+            ISOException.throwIt(SW_WRONG_LENGTH);
         }
 
         pin.update(buf, OFFSET_CDATA, PIN_SIZE);
@@ -304,14 +306,14 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
 
     private void processSetPUK(APDU apdu) {
         if (isPersonalized == true) {
-            ISOException.throwIt(ISO7816.SW_COMMAND_NOT_ALLOWED);
+            ISOException.throwIt(SW_COMMAND_NOT_ALLOWED);
         }
 
         apdu.setIncomingAndReceive();
         byte[] buf = apdu.getBuffer();
         short lc = apdu.getIncomingLength();
         if (lc != PUK_SIZE) {
-            ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
+            ISOException.throwIt(SW_WRONG_LENGTH);
         }
 
         puk.update(buf, OFFSET_CDATA, PUK_SIZE);
@@ -325,7 +327,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         byte[] buf = apdu.getBuffer();
         short lc = apdu.getIncomingLength();
         if (lc != PUK_SIZE) {
-            ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
+            ISOException.throwIt(SW_WRONG_LENGTH);
         }
 
         if (puk.check(buf, OFFSET_CDATA, PUK_SIZE) == false) {
@@ -340,7 +342,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
 
     private void processGenerateMasterSeed(APDU apdu) {
         if (pin.isValidated() == false) {
-            ISOException.throwIt(ISO7816.SW_SECURITY_STATUS_NOT_SATISFIED);
+            ISOException.throwIt(SW_SECURITY_STATUS_NOT_SATISFIED);
         }
 
         if (mseedInitialized == true) {
@@ -358,7 +360,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
 
     private void processRequestRemoveMasterSeed(APDU apdu) {
         if (pin.isValidated() == false) {
-            ISOException.throwIt(ISO7816.SW_SECURITY_STATUS_NOT_SATISFIED);
+            ISOException.throwIt(SW_SECURITY_STATUS_NOT_SATISFIED);
         }
 
         short offset = generateYesCode(main500, (short) 0);
@@ -389,7 +391,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
 
     private void processRemoveMasterSeed(APDU apdu) {
         if (pin.isValidated() == false) {
-            ISOException.throwIt(ISO7816.SW_SECURITY_STATUS_NOT_SATISFIED);
+            ISOException.throwIt(SW_SECURITY_STATUS_NOT_SATISFIED);
         }
 
         apdu.setIncomingAndReceive();
@@ -405,14 +407,14 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
 
     private void processRequestExportMasterSeed(APDU apdu) {
         if (pin.isValidated() == false) {
-            ISOException.throwIt(ISO7816.SW_SECURITY_STATUS_NOT_SATISFIED);
+            ISOException.throwIt(SW_SECURITY_STATUS_NOT_SATISFIED);
         }
 
         if (mseedInitialized == false) {
             ISOException.throwIt(SW_COMMAND_NOT_ALLOWED);
         }
 
-        if (commandBuffer80[0] == 0x00) {
+        if (commandBuffer80[0] == (byte) 0x00) {
             ISOException.throwIt(SW_COMMAND_NOT_ALLOWED);
         }
 
@@ -441,30 +443,33 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
 
         aesCBCCipher.init(transportKeySecret, Cipher.MODE_ENCRYPT);
 
+        short offset = packOffset;
         // exportPacket ::= SEQUENCE {
         // ECC256PublicKey INTEGER,
         // AES256Cipher INTEGER
         // }
-        pack[(short) (packOffset + 0)] = (byte) 0x30;// SEQUENCE
-        pack[(short) (packOffset + 1)] = (byte) 0x85;// length:133
-        pack[(short) (packOffset + 2)] = (byte) 0x02;// INTEGER
-        pack[(short) (packOffset + 3)] = (byte) 0x41;// length : 65
-        // mainBuffer[4..68]//ECC256PublicKey: 65 bytes
-        ((ECPublicKey) transportKey.getPublic()).getW(pack, (short) (packOffset + 4));
-        pack[(short) (packOffset + 69)] = (byte) 0x02;// INTEGER
-        pack[(short) (packOffset + 70)] = (byte) 0x40;// length: 64
-        // mainBuffer[71..134]//AES256Cipher: 64 bytes
-        aesCBCCipher.doFinal(data, dataOffset, dataLen, pack, (short) (packOffset + 71));
-
+        pack[offset++] = (byte) 0x30;// SEQUENCE
+        pack[offset++] = (byte) 0x85;// length:133
+        pack[offset++] = (byte) 0x02;// INTEGER
+        // pack[4..68]//ECC256PublicKey: 65 bytes
+        short publicKeyLength = ((ECPublicKey) transportKey.getPublic()).getW(pack, (short) (offset + 1));
+        pack[offset++] = (byte) publicKeyLength;
+        offset += publicKeyLength;
+        pack[offset++] = (byte) 0x02;// INTEGER
+        // pack[71..134]//AES256Cipher: 64 bytes
+        short cipherLength = aesCBCCipher.doFinal(data, dataOffset, dataLen, pack, (short) (offset + 1));
+        pack[offset++] = (byte) cipherLength;
+        offset += cipherLength;
+        Util.arrayFillNonAtomic(commandBuffer80, (short) 0, (short) commandBuffer80.length, (byte) 0x00);
         transportKey.getPrivate().clearKey();
         transportKeySecret.clearKey();
 
-        return (short) 135;
+        return offset;
     }
 
     private void processExportMasterSeed(APDU apdu) {
         if (pin.isValidated() == false) {
-            ISOException.throwIt(ISO7816.SW_SECURITY_STATUS_NOT_SATISFIED);
+            ISOException.throwIt(SW_SECURITY_STATUS_NOT_SATISFIED);
         }
 
         if (mseedInitialized == false) {
@@ -486,7 +491,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
 
     private void processImportMasterSeed(APDU apdu) {
         if (pin.isValidated() == false) {
-            ISOException.throwIt(ISO7816.SW_SECURITY_STATUS_NOT_SATISFIED);
+            ISOException.throwIt(SW_SECURITY_STATUS_NOT_SATISFIED);
         }
 
         if (mseedInitialized == true) {
@@ -501,7 +506,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         byte[] buf = apdu.getBuffer();
         short lc = apdu.getIncomingLength();
         if (lc != (short) 135) {
-            ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
+            ISOException.throwIt(SW_WRONG_LENGTH);
         }
 
         // Get main wallet trnsport key public : 65
@@ -523,7 +528,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
 
     private void processImportMasterSeedPalin(APDU apdu) {
         if (pin.isValidated() == false) {
-            ISOException.throwIt(ISO7816.SW_SECURITY_STATUS_NOT_SATISFIED);
+            ISOException.throwIt(SW_SECURITY_STATUS_NOT_SATISFIED);
         }
 
         if (mseedInitialized == true) {
@@ -535,13 +540,13 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         short lc = apdu.getIncomingLength();
 
         if (lc != MSEED_SIZE) {
-            ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
+            ISOException.throwIt(SW_WRONG_LENGTH);
         }
 
         Util.arrayCopyNonAtomic(buf, OFFSET_CDATA, main500, (short) 0, MSEED_SIZE);
 
         if (!bip.bip32GenerateMasterKey(main500, (short) 0, MSEED_SIZE, main500, MSEED_SIZE)) {
-            ISOException.throwIt(ISO7816.SW_DATA_INVALID);
+            ISOException.throwIt(SW_DATA_INVALID);
         }
 
         Util.arrayCopyNonAtomic(buf, OFFSET_CDATA, mseed, (short) 0, MSEED_SIZE);
@@ -551,7 +556,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
 
     private void processGetAddressList(APDU apdu) {
         if (pin.isValidated() == false) {
-            ISOException.throwIt(ISO7816.SW_SECURITY_STATUS_NOT_SATISFIED);
+            ISOException.throwIt(SW_SECURITY_STATUS_NOT_SATISFIED);
         }
 
         if (mseedInitialized == false) {
@@ -563,7 +568,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         short lc = apdu.getIncomingLength();
 
         if (lc != (byte) 0x08) {
-            ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
+            ISOException.throwIt(SW_WRONG_LENGTH);
         }
 
         short reslutLen = bip.bip44DerivePath(mseed, (short) 0, MSEED_SIZE, buf, OFFSET_CDATA, main500, (short) 0,
@@ -576,7 +581,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
 
     private void processGetSubWalletAddressList(APDU apdu) {
         if (pin.isValidated() == false) {
-            ISOException.throwIt(ISO7816.SW_SECURITY_STATUS_NOT_SATISFIED);
+            ISOException.throwIt(SW_SECURITY_STATUS_NOT_SATISFIED);
         }
 
         if (mseedInitialized == false) {
@@ -588,7 +593,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         short lc = apdu.getIncomingLength();
 
         if (lc != (byte) 0x03) {
-            ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
+            ISOException.throwIt(SW_WRONG_LENGTH);
         }
 
         short numOfSub = buf[OFFSET_CDATA];
@@ -607,11 +612,14 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
             moffset = Util.arrayCopyNonAtomic(scratch515, (short) 97, main500, moffset, (short) 25);
         }
 
+        apdu.setOutgoing();
+        apdu.setOutgoingLength(moffset);
+        apdu.sendBytesLong(main500, (short) 0, moffset);
     }
 
     private void processRequestGenerateSubWallet(APDU apdu) {
         if (pin.isValidated() == false) {
-            ISOException.throwIt(ISO7816.SW_SECURITY_STATUS_NOT_SATISFIED);
+            ISOException.throwIt(SW_SECURITY_STATUS_NOT_SATISFIED);
         }
 
         if (mseedInitialized == false) {
@@ -636,7 +644,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
 
     private void processGenerateSubWallet(APDU apdu) {
         if (pin.isValidated() == false) {
-            ISOException.throwIt(ISO7816.SW_SECURITY_STATUS_NOT_SATISFIED);
+            ISOException.throwIt(SW_SECURITY_STATUS_NOT_SATISFIED);
         }
 
         if (mseedInitialized == false) {
@@ -653,7 +661,6 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         short spendIndex = 0; // 8B
         short feeIndex = 8; // 8B
         short numOfSubIndex = 16; // 1B
-        // short firstSubKeyPathIndex = 17; // 7B
         short firstSubWalletIndex = 17; // 2B
 
         // buf
@@ -667,7 +674,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         // output count
         short numOfSub = commandBuffer80[numOfSubIndex];
         if (numOfSub > 10) {// Maximum number of sub wallets
-            ISOException.throwIt(ISO7816.SW_DATA_INVALID);
+            ISOException.throwIt(SW_DATA_INVALID);
         }
 
         short outputSectionIndex = 0;
@@ -718,10 +725,14 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
 
     private void processRequestExportSubWallet(APDU apdu) {
         if (pin.isValidated() == false) {
-            ISOException.throwIt(ISO7816.SW_SECURITY_STATUS_NOT_SATISFIED);
+            ISOException.throwIt(SW_SECURITY_STATUS_NOT_SATISFIED);
         }
 
         if (mseedInitialized == false) {
+            ISOException.throwIt(SW_COMMAND_NOT_ALLOWED);
+        }
+
+        if (commandBuffer80[0] == (byte) 0x00) {
             ISOException.throwIt(SW_COMMAND_NOT_ALLOWED);
         }
 
@@ -730,7 +741,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         short lc = apdu.getIncomingLength();
 
         if (lc != 2) {
-            ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
+            ISOException.throwIt(SW_WRONG_LENGTH);
         }
 
         Util.arrayCopyNonAtomic(buf, OFFSET_CDATA, commandBuffer80, (short) 70, lc);
@@ -750,7 +761,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
 
     private void processExportSubWallet(APDU apdu) {
         if (pin.isValidated() == false) {
-            ISOException.throwIt(ISO7816.SW_SECURITY_STATUS_NOT_SATISFIED);
+            ISOException.throwIt(SW_SECURITY_STATUS_NOT_SATISFIED);
         }
 
         if (mseedInitialized == false) {
@@ -768,11 +779,8 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         bip.generateSubwalletSeed(mseed, (short) 0, MSEED_SIZE, subWalletNumber, scratch515, (short) 0, scratch515,
                 (short) 64);
 
-        bip.bip44DerivePath(scratch515, (short) 0, (short) 64, subwalletPath, (short) 0, scratch515, (short) 64,
-                (short) 1, scratch515, (short) 96, scratch515, (short) 121);
-
-        short packLen = createExportPacket(scratch515, (short) 64, (short) 32, main500, (short) 0, scratch515,
-                (short) 96);
+        short packLen = createExportPacket(scratch515, (short) 0, (short) 64, main500, (short) 0, scratch515,
+                (short) 64);
 
         apdu.setOutgoing();
         apdu.setOutgoingLength(packLen);
@@ -781,8 +789,10 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
 
     private void processGenerateTransportKey(APDU apdu) {
         if (pin.isValidated() == false) {
-            ISOException.throwIt(ISO7816.SW_SECURITY_STATUS_NOT_SATISFIED);
+            ISOException.throwIt(SW_SECURITY_STATUS_NOT_SATISFIED);
         }
+
+        transportKey.getPrivate().clearKey();
 
         Secp256k1.setCommonCurveParameters(((ECPrivateKey) transportKey.getPrivate()));
         Secp256k1.setCommonCurveParameters(((ECPublicKey) transportKey.getPublic()));
@@ -801,7 +811,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
 
     private void processImportTransportKeyPublic(APDU apdu) {
         if (pin.isValidated() == false) {
-            ISOException.throwIt(ISO7816.SW_SECURITY_STATUS_NOT_SATISFIED);
+            ISOException.throwIt(SW_SECURITY_STATUS_NOT_SATISFIED);
         }
 
         if (mseedInitialized == false) {
@@ -812,7 +822,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         byte[] buf = apdu.getBuffer();
         short lc = apdu.getIncomingLength();
         if (lc != (short) 65) {
-            ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
+            ISOException.throwIt(SW_WRONG_LENGTH);
         }
 
         short publicKeyLength = lc;
@@ -912,7 +922,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         // end for
 
         if ((short) (signedTxIndex + outputSectionLength + 4) >= footerIndex) {
-            ISOException.throwIt(ISO7816.SW_FILE_FULL);
+            ISOException.throwIt(SW_FILE_FULL);
         }
 
         signedTxIndex = Util.arrayCopyNonAtomic(outputSection, outputSectionOffset, signedTx, signedTxIndex,
@@ -926,7 +936,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
 
     private void processRequestSignTransaction(APDU apdu) {
         if (pin.isValidated() == false) {
-            ISOException.throwIt(ISO7816.SW_SECURITY_STATUS_NOT_SATISFIED);
+            ISOException.throwIt(SW_SECURITY_STATUS_NOT_SATISFIED);
         }
 
         if (mseedInitialized == false) {
