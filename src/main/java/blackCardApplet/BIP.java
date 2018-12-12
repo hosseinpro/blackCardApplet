@@ -26,12 +26,12 @@ class BIP {
     public BIP() {
         sha256 = MessageDigest.getInstance(MessageDigest.ALG_SHA_256, false);
         hmacSignature = Signature.getInstance(Signature.ALG_HMAC_SHA_512, false);
-        hmacMasterKey = (HMACKey) KeyBuilder.buildKey(KeyBuilder.TYPE_HMAC, KeyBuilder.LENGTH_HMAC_SHA_512_BLOCK_128,
-                false);
-        hmacDerivedKey = (HMACKey) KeyBuilder.buildKey(KeyBuilder.TYPE_HMAC, KeyBuilder.LENGTH_HMAC_SHA_512_BLOCK_128,
-                false);
-        hmacSubWallet = (HMACKey) KeyBuilder.buildKey(KeyBuilder.TYPE_HMAC, KeyBuilder.LENGTH_HMAC_SHA_512_BLOCK_128,
-                false);
+        hmacMasterKey = (HMACKey) KeyBuilder.buildKey(KeyBuilder.TYPE_HMAC_TRANSIENT_DESELECT,
+                KeyBuilder.LENGTH_HMAC_SHA_512_BLOCK_128, false);
+        hmacDerivedKey = (HMACKey) KeyBuilder.buildKey(KeyBuilder.TYPE_HMAC_TRANSIENT_DESELECT,
+                KeyBuilder.LENGTH_HMAC_SHA_512_BLOCK_128, false);
+        hmacSubWallet = (HMACKey) KeyBuilder.buildKey(KeyBuilder.TYPE_HMAC_TRANSIENT_DESELECT,
+                KeyBuilder.LENGTH_HMAC_SHA_512_BLOCK_128, false);
         ecMultiplyHelper = KeyAgreement.getInstance(ALG_EC_SVDP_DH_PLAIN_XY, false);
         ecPrivateKeyTemp = (ECPrivateKey) KeyBuilder.buildKey(KeyBuilder.TYPE_EC_FP_PRIVATE,
                 KeyBuilder.LENGTH_EC_FP_256, false);

@@ -147,9 +147,13 @@ class MainPage extends Component {
   cardreaderTransmit(commandAPDU) {
     commandAPDU = commandAPDU.toUpperCase();
     return new Promise((resolve, reject) => {
-      const timeCommand = this.getTime();
+      const timeCommand = new Date();
       const responseAPDULog =
-        this.state.responseAPDULog + timeCommand + " << " + commandAPDU + "\n";
+        this.state.responseAPDULog +
+        timeCommand.toLocaleTimeString("it-IT") +
+        " << " +
+        commandAPDU +
+        "\n";
       this.setState({
         responseAPDULog
       });
@@ -161,12 +165,16 @@ class MainPage extends Component {
           commandAPDU
         )
         .then(responseAPDU => {
-          const timeResponse = this.getTime();
+          const timeResponse = new Date();
+          const executionTime = timeResponse.getTime() - timeCommand.getTime();
           const responseAPDULog =
             this.state.responseAPDULog +
-            timeResponse +
+            timeResponse.toLocaleTimeString("it-IT") +
             " >> " +
             responseAPDU +
+            " [" +
+            executionTime.toString() +
+            "ms]" +
             "\n";
           this.setState({
             responseAPDULog

@@ -14,6 +14,9 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
     private static final short SW_PIN_INCORRECT_TRIES_LEFT = (short) 0x63C0;
     private static final short LABEL_SIZE_MAX = 16;
     private static final short MSEED_SIZE = 64;
+    private static final short NUM_OF_SUBWALLET_MAX = 16;// based on available memory
+
+    public static final byte ALG_EC_SVDP_DH_PLAIN_XY = (byte) 6;// Not defined until JC 3.0.5
 
     private static final short CL_NONE = 0;
     private static final short CL_REMOVE_MSEED = 1;
@@ -39,11 +42,11 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, (byte) 0x88, (byte) 0xac };
     private static final byte subwalletPath[] = { 'm', 44, 0, 0, 1, 0, 0 }; // m'/44'/0'(BTC)/0'/1(internal)/0
 
-    private static byte[] mseed = new byte[64];
+    private static byte[] mseed;
     private static boolean mseedInitialized;
     private ECPrivateKey signKey;
     private MessageDigest sha256;
-    private Signature signature;
+    private Signature ecdsaSignature;
     private KeyAgreement ecdh;
     private AESKey transportKeySecret;
     private static KeyPair transportKey;
@@ -85,18 +88,20 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
 
         tempSerialNumber = JCSystem.makeTransientByteArray(SERIALNUMBER_SIZE, JCSystem.CLEAR_ON_DESELECT);
 
+        mseed = new byte[64];
         mseedInitialized = false;
         signKey = (ECPrivateKey) KeyBuilder.buildKey(KeyBuilder.TYPE_EC_FP_PRIVATE, KeyBuilder.LENGTH_EC_FP_256, false);
 
         transportKey = new KeyPair(KeyPair.ALG_EC_FP, KeyBuilder.LENGTH_EC_FP_256);
 
-        main500 = JCSystem.makeTransientByteArray((short) 500, JCSystem.CLEAR_ON_DESELECT);
-        scratch515 = JCSystem.makeTransientByteArray((short) 515, JCSystem.CLEAR_ON_DESELECT);
+        main500 = JCSystem.makeTransientByteArray((short) 1500, JCSystem.CLEAR_ON_DESELECT);
+        scratch515 = JCSystem.makeTransientByteArray((short) 1000, JCSystem.CLEAR_ON_DESELECT);
 
         sha256 = MessageDigest.getInstance(MessageDigest.ALG_SHA_256, false);
-        signature = Signature.getInstance(Signature.ALG_ECDSA_SHA_256, false);
-        ecdh = KeyAgreement.getInstance(KeyAgreement.ALG_EC_SVDP_DH_PLAIN, false);
-        transportKeySecret = (AESKey) KeyBuilder.buildKey(KeyBuilder.TYPE_AES, KeyBuilder.LENGTH_AES_256, false);
+        ecdsaSignature = Signature.getInstance(Signature.ALG_ECDSA_SHA_256, false);
+        ecdh = KeyAgreement.getInstance(ALG_EC_SVDP_DH_PLAIN_XY, false);
+        transportKeySecret = (AESKey) KeyBuilder.buildKey(KeyBuilder.TYPE_AES_TRANSIENT_DESELECT,
+                KeyBuilder.LENGTH_AES_256, false);
         aesCBCCipher = Cipher.getInstance(Cipher.ALG_AES_BLOCK_128_CBC_NOPAD, false);
         commandBuffer80 = JCSystem.makeTransientByteArray((short) 80, JCSystem.CLEAR_ON_DESELECT);
 
@@ -673,7 +678,7 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         short moffset = 0;
         // output count
         short numOfSub = commandBuffer80[numOfSubIndex];
-        if (numOfSub > 10) {// Maximum number of sub wallets
+        if (numOfSub > NUM_OF_SUBWALLET_MAX) {// Maximum number of sub wallets
             ISOException.throwIt(SW_DATA_INVALID);
         }
 
@@ -718,9 +723,9 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
         short signedTxLength = signTransaction(buf, inputSectionIndex, buf, signerKeyPathsIndex, scratch515, (short) 0,
                 moffset, main500, (short) 0, scratch515, moffset);
 
-        apdu.setOutgoing();
-        apdu.setOutgoingLength(signedTxLength);
-        apdu.sendBytesLong(main500, (short) 0, signedTxLength);
+        // apdu.setOutgoing();
+        // apdu.setOutgoingLength(signedTxLength);
+        // apdu.sendBytesLong(main500, (short) 0, signedTxLength);
     }
 
     private void processRequestExportSubWallet(APDU apdu) {
@@ -887,13 +892,13 @@ public class blackCardApplet extends Applet implements ISO7816, ExtendedLength {
 
         Secp256k1.setCommonCurveParameters(signKey);
         signKey.setS(scratch322, (short) (offset + 32), (short) 32);
-        signature.init(signKey, Signature.MODE_SIGN);
+        ecdsaSignature.init(signKey, Signature.MODE_SIGN);
         short scriptLenIndex = signedTxIndex;
         signedTxIndex++;// 1B script Len
         short signatureLen = 0;
         short sIndex = 0;
         do {
-            signatureLen = signature.sign(scratch322, offset, (short) 32, scratch322, (short) (offset + 64));
+            signatureLen = ecdsaSignature.sign(scratch322, offset, (short) 32, scratch322, (short) (offset + 64));
             // 30 45 02 20 XXXX 02 20 XXXX
             sIndex = (short) (offset + 64 + 4 - 1);
             sIndex += scratch322[sIndex];

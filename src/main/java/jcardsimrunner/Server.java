@@ -3,7 +3,7 @@ package jcardsimrunner;
 import com.licel.jcardsim.smartcardio.CardSimulator;
 import com.licel.jcardsim.utils.AIDUtil;
 import javacard.framework.AID;
-
+import javacard.framework.SystemException;
 import blackCardApplet.*;
 
 import javax.smartcardio.*;
@@ -20,7 +20,6 @@ public class Server {
 
         simulator = new CardSimulator();
         simulator.changeProtocol("T=1");
-        String s = simulator.getProtocol();
         appletAID = AIDUtil.create(blackCardApplet.AID);
         simulator.installApplet(appletAID, blackCardApplet.class);
 
